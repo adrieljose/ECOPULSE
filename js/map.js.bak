@@ -1,0 +1,274 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) return;
+
+  const MAP_CENTER = [10.098, 122.88];
+  const DATA_URL = 'get_devices.php';
+  const AUTO_REFRESH_MS = 60 * 1000; // 1 minute
+
+  const statusConfig = {
+    online: { label: 'Healthy', color: '#2ecc71', badgeClass: 'status-online' },
+    warning: { label: 'Watch', color: '#f1c40f', badgeClass: 'status-warning' },
+    critical: { label: 'Critical', color: '#e74c3c', badgeClass: 'status-critical' },
+    offline: { label: 'Offline', color: '#95a5a6', badgeClass: 'status-offline' }
+  };
+
+  const mapInstance = L.map('map', {
+    zoomControl: true,
+    scrollWheelZoom: true
+  }).setView(MAP_CENTER, 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(mapInstance);
+
+  const markerLayer = L.layerGroup().addTo(mapInstance);
+  const markerIndex = new Map();
+
+  const filterStatusEl = document.getElementById('filterStatus');
+  const filterAqiBandEl = document.getElementById('filterAqiBand');
+  const refreshButton = document.getElementById('mapRefresh');
+  const stationListEl = document.getElementById('mapStationList');
+  const avgAqiEl = document.getElementById('mapAvgAqi');
+  const onlineCountEl = document.getElementById('mapOnlineCount');
+  const criticalCountEl = document.getElementById('mapCriticalCount');
+
+  let sensors = [];
+
+  const formatNumber = (value, decimals = 0) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    return num.toFixed(decimals);
+  };
+
+  const formatRelative = (isoString) => {
+    if (!isoString) return 'Unknown';
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    const diff = Date.now() - date.getTime();
+    const mins = Math.round(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours} hr${hours > 1 ? 's' : ''} ago`;
+    const days = Math.round(hours / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  const getStatusConfig = (sensor) => {
+    if (sensor.status === 'warning') return statusConfig.warning;
+    if (sensor.status === 'critical') return statusConfig.critical;
+    if (sensor.status === 'offline') return statusConfig.offline;
+    return statusConfig.online;
+  };
+
+  const getAqiBand = (aqi) => {
+    if (aqi == null) return 'unknown';
+    if (aqi <= 50) return 'good';
+    if (aqi <= 100) return 'moderate';
+    if (aqi <= 150) return 'unhealthy-sg';
+    if (aqi <= 200) return 'unhealthy';
+    return 'very-unhealthy';
+  };
+
+  const buildPopup = (sensor, config) => {
+    const pm25 = formatNumber(sensor.pm25, 1);
+    const pm10 = formatNumber(sensor.pm10, 1);
+    const pm1 = formatNumber(sensor.pm1, 1);
+    const co2 = formatNumber(sensor.co2, 1);
+    const o3 = formatNumber(sensor.o3, 1);
+    const co = formatNumber(sensor.co, 1);
+    const aqiValue = sensor.aqi != null ? sensor.aqi : '--';
+    const metricsHtml = sensor.status !== 'offline'
+      ? `
+          <div>PM1.0: <strong>${pm1 ?? '--'}</strong> ug/m3</div>
+          <div>PM2.5: <strong>${pm25 ?? '--'}</strong> ug/m3</div>
+          <div>PM10: <strong>${pm10 ?? '--'}</strong> ug/m3</div>
+          <div>Ozone (O3): <strong>${o3 ?? '--'}</strong> ug/m3</div>
+          <div>CO2: <strong>${co2 ?? '--'}</strong> ppm</div>
+          <div>CO: <strong>${co ?? '--'}</strong> ppm</div>
+          <div>Status: <strong>${config.label}</strong></div>
+        `
+      : '<div>Device is currently offline.</div>';
+
+    return `
+      <div class="map-popup">
+        <div class="d-flex align-items-center mb-1">
+          <strong class="me-2">${sensor.name}</strong>
+          <span class="badge" style="background:${config.color};color:#fff;">
+            ${sensor.status === 'offline' ? 'Offline' : `AQI ${aqiValue}`}
+          </span>
+        </div>
+        <div class="text-muted small mb-2">${sensor.area} &bull; Updated ${formatRelative(sensor.updatedAt)}</div>
+        <div class="small">${metricsHtml}</div>
+      </div>`;
+  };
+
+  const renderMarkers = (dataset) => {
+    markerLayer.clearLayers();
+    markerIndex.clear();
+
+    dataset.forEach(sensor => {
+      const config = getStatusConfig(sensor);
+      const marker = L.circleMarker([sensor.lat, sensor.lng], {
+        radius: 10,
+        color: config.color,
+        weight: 2,
+        fillColor: config.color,
+        fillOpacity: 0.35
+      }).bindPopup(buildPopup(sensor, config));
+
+      marker.on('click', () => highlightStation(sensor.id));
+      marker.addTo(markerLayer);
+      markerIndex.set(sensor.id, marker);
+    });
+
+    if (dataset.length) {
+      try {
+        const bounds = L.latLngBounds(dataset.map(sensor => [sensor.lat, sensor.lng]));
+        mapInstance.fitBounds(bounds.pad(0.25));
+      } catch (error) {
+        console.warn('Unable to fit bounds for sensor markers', error);
+      }
+    }
+  };
+
+  const renderMetricChip = (label, value, decimals = 0, suffix = '') => {
+    const formatted = formatNumber(value, decimals);
+    const display = formatted !== null ? `${formatted}${suffix ? ` ${suffix}` : ''}` : '--';
+    return `<div class="station-chip">
+      <span>${label}</span>
+      <strong>${display}</strong>
+    </div>`;
+  };
+
+  const renderStationList = (dataset) => {
+    if (!stationListEl) return;
+    if (!dataset.length) {
+      stationListEl.innerHTML = '<p class="text-muted mb-0">No stations match the selected filters.</p>';
+      return;
+    }
+
+    stationListEl.innerHTML = dataset.map(sensor => {
+      const config = getStatusConfig(sensor);
+      return `
+        <article class="station-item" data-id="${sensor.id}">
+          <div class="station-header">
+            <div class="station-title">
+              <h6 class="station-name">${sensor.name}</h6>
+              <span class="station-area">${sensor.area}</span>
+            </div>
+            <span class="station-status badge-status ${config.badgeClass}">${config.label}</span>
+          </div>
+          <div class="station-metrics">
+            ${renderMetricChip('AQI', sensor.aqi, 0)}
+          </div>
+          <div class="station-footer">
+            <span class="station-updated"><span data-feather="clock"></span>${formatRelative(sensor.updatedAt)}</span>
+            <div class="station-actions"></div>
+          </div>
+        </article>`;
+    }).join('');
+
+    if (window.feather) {
+      window.feather.replace();
+    }
+  };
+
+  const updateSummary = (dataset) => {
+    const total = dataset.length;
+    let online = 0;
+    let critical = 0;
+    let sumAqi = 0;
+
+    dataset.forEach(sensor => {
+      if (sensor.status !== 'offline' && sensor.aqi != null) {
+        online += 1;
+        sumAqi += sensor.aqi;
+        if (sensor.status === 'critical' || sensor.aqi > 150) {
+          critical += 1;
+        }
+      }
+    });
+
+    const average = online ? Math.round(sumAqi / online) : '--';
+    if (avgAqiEl) avgAqiEl.textContent = average;
+    if (onlineCountEl) onlineCountEl.textContent = `${online}/${total}`;
+    if (criticalCountEl) criticalCountEl.textContent = critical;
+  };
+
+  const highlightStation = (stationId) => {
+    const marker = markerIndex.get(stationId);
+    if (marker) {
+      mapInstance.flyTo(marker.getLatLng(), 15, { duration: 0.5 });
+      marker.openPopup();
+    }
+    stationListEl?.querySelectorAll('.station-item').forEach(item => {
+      item.classList.toggle('active', item.getAttribute('data-id') === String(stationId));
+    });
+  };
+
+  const applyFilters = () => {
+    const statusFilter = filterStatusEl?.value || 'all';
+    const aqiFilter = filterAqiBandEl?.value || 'all';
+
+    const filtered = sensors.filter(sensor => {
+      const statusMatch = (() => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'offline') return sensor.status === 'offline';
+        if (statusFilter === 'online') return sensor.status === 'online';
+        if (statusFilter === 'warning') return sensor.status === 'warning';
+        if (statusFilter === 'critical') return sensor.status === 'critical';
+        return true;
+      })();
+
+      const bandMatch = (() => {
+        if (aqiFilter === 'all') return true;
+        if (sensor.status === 'offline' || sensor.aqi == null) return false;
+        const band = getAqiBand(sensor.aqi).replace('_', '-');
+        return band === aqiFilter;
+      })();
+
+      return statusMatch && bandMatch;
+    });
+
+    renderMarkers(filtered);
+    renderStationList(filtered);
+    updateSummary(filtered);
+  };
+
+  const fetchData = async (manual = false) => {
+    try {
+      refreshButton?.classList.add('loading');
+      refreshButton && (refreshButton.disabled = true);
+
+      const response = await fetch(`${DATA_URL}?cache=${Date.now()}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const payload = await response.json();
+      sensors = Array.isArray(payload.sensors) ? payload.sensors : [];
+
+      applyFilters();
+
+      if (manual) {
+        refreshButton?.classList.add('btn-success');
+        setTimeout(() => refreshButton?.classList.remove('btn-success'), 700);
+      }
+    } catch (error) {
+      console.error('Failed to load map data', error);
+      if (stationListEl) {
+        stationListEl.innerHTML = '<p class="text-danger mb-0">Unable to load map data right now.</p>';
+      }
+    } finally {
+      refreshButton?.classList.remove('loading');
+      if (refreshButton) refreshButton.disabled = false;
+    }
+  };
+
+  filterStatusEl?.addEventListener('change', applyFilters);
+  filterAqiBandEl?.addEventListener('change', applyFilters);
+  refreshButton?.addEventListener('click', () => fetchData(true));
+
+  fetchData();
+  setInterval(fetchData, AUTO_REFRESH_MS);
+});

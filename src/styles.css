@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.18);
+  --card-text: #e8edf5;
+  --card-muted: #b9c4d6;
+  --card-button: linear-gradient(135deg, #204f79 0%, #69a1d1 100%);
+}
+
+.magic-card-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 1rem;
+}
+
+.magic-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.magic-card--login {
+  max-width: 420px;
+  width: 100%;
+}
+
+.magic-card__border {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 2;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+.magic-card__surface {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  z-index: 1;
+}
+
+.magic-card__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 2;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+.magic-card__body {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.25rem 1.5rem;
+  color: var(--card-text);
+}
+
+.magic-card:hover .magic-card__border,
+.magic-card:focus-within .magic-card__border,
+.magic-card:hover .magic-card__glow,
+.magic-card:focus-within .magic-card__glow {
+  opacity: 1;
+}
+
+.magic-card-header {
+  padding-bottom: 0.5rem;
+}
+
+.magic-card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.magic-card-header p {
+  margin: 0.25rem 0 0;
+  color: var(--card-muted);
+  font-size: 0.95rem;
+}
+
+.magic-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.magic-card-label {
+  font-size: 0.85rem;
+  color: var(--card-muted);
+  font-weight: 600;
+}
+
+.magic-card-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.magic-card-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.magic-card-input:focus {
+  border-color: rgba(105, 161, 209, 0.9);
+  box-shadow: 0 0 0 3px rgba(105, 161, 209, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.magic-card-footer {
+  padding-top: 0.5rem;
+}
+
+.magic-card-button {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.9rem 1rem;
+  background: var(--card-button);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background-position 0.35s ease;
+  background-size: 200% 200%;
+  box-shadow: 0 12px 24px rgba(32, 79, 121, 0.25);
+}
+
+.magic-card-button:hover {
+  transform: translateY(-1px);
+  background-position: 100% 0;
+  box-shadow: 0 14px 28px rgba(1, 186, 239, 0.3);
+}
+
+.magic-card-button:active {
+  transform: translateY(0);
+}

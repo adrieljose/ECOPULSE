@@ -1,0 +1,16 @@
+[
+    {
+        "id": "caution_alert",
+        "label": "Caution Alert (Yellow)",
+        "description": "For elevated pollution levels: caution residents and prepare barangay leaders for possible escalation.",
+        "content": "EcoPulse Advisory (YELLOW): High pollution detected in your area. Limit outdoor exposure, especially for children\/elderly. Use masks if needed.",
+        "last_updated": "2026-01-02T21:54:09+08:00"
+    },
+    {
+        "id": "pollution_alert",
+        "label": "Pollution Alert",
+        "description": "Primary alert template used when air quality reaches critical levels.",
+        "content": "EcoPulse Advisory Critical (RED): Hazardous air in your area. Stay indoors, and seal windows. Follow LGU instructions.",
+        "last_updated": "2026-01-02T21:54:09+08:00"
+    }
+]
