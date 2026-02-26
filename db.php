@@ -3,11 +3,19 @@
 date_default_timezone_set('Asia/Manila');
 
 function db() {
-    $hosts = ['127.0.0.1', 'localhost']; // try TCP first, then socket/localhost
-    $port = 3306;
-    $dbname = 'ecopulse';     // must match your HeidiSQL database name
-    $username = 'root';       // default Laragon username
-    $password = '';           // leave blank for Laragon default
+    // Cloud environments (Render, Vercel, Railway) will use these Environment Variables
+    $host_env = getenv('DB_HOST') ?: (isset($_ENV['DB_HOST']) ? $_ENV['DB_HOST'] : null);
+    $port_env = getenv('DB_PORT') ?: (isset($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : null);
+    $dbname_env = getenv('DB_NAME') ?: (isset($_ENV['DB_NAME']) ? $_ENV['DB_NAME'] : null);
+    $username_env = getenv('DB_USER') ?: (isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : null);
+    $password_env = getenv('DB_PASS') ?: (isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : '');
+
+    // Fallbacks to Local Laragon settings if environment variables are not set
+    $hosts = $host_env ? [$host_env] : ['127.0.0.1', 'localhost'];
+    $port = $port_env ?: 3306;
+    $dbname = $dbname_env ?: 'ecopulse';
+    $username = $username_env ?: 'root';
+    $password = $password_env;
 
     $errors = [];
     foreach ($hosts as $host) {
