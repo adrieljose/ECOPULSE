@@ -626,8 +626,56 @@ const App = {
                 // --- Check and Trigger SMS Alerts for High AQI ---
                 this.checkAndTriggerSmsAlert(data);
 
+                // --- Fetch System Activity Timeline ---
+                this.fetchIncidentTimeline();
+
             })
             .catch(err => console.error('Dashboard update failed:', err));
+    },
+
+    fetchIncidentTimeline() {
+        const list = document.getElementById('incidentTimelineList');
+        if (!list) return;
+
+        let url = 'api/incidents.php?limit=5';
+        const deviceId = document.getElementById('dashboardDeviceSelector')?.value;
+        if (deviceId) {
+            url += '&device_id=' + deviceId;
+        }
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (data.items && data.items.length > 0) {
+                    list.innerHTML = data.items.map(inc => {
+                        let icon = 'fa-info-circle text-primary';
+                        if (inc.severity === 'critical') icon = 'fa-triangle-exclamation text-danger';
+                        else if (inc.severity === 'warning') icon = 'fa-circle-exclamation text-warning';
+                        else if (inc.severity === 'success' || inc.event_type === 'recovery') icon = 'fa-circle-check text-success';
+                        
+                        let dateObj = new Date(inc.created_at);
+                        let timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        let dateStr = dateObj.toLocaleDateString([], {month: 'short', day: 'numeric'});
+
+                        return `<li class="list-group-item px-3 py-2 d-flex align-items-start gap-3 border-bottom transition-colors hover-bg-light" style="border-radius: 0;">
+                                    <div class="mt-1"><i class="fa-solid ${icon}"></i></div>
+                                    <div class="flex-grow-1">
+                                        <p class="mb-0 text-dark small fw-medium">${inc.message}</p>
+                                        <span class="text-muted" style="font-size: 0.70rem;"><i class="fa-regular fa-clock me-1"></i>${dateStr}, ${timeStr} &bullet; ${inc.device_name || 'System'}</span>
+                                    </div>
+                                </li>`;
+                    }).join('');
+                } else {
+                    list.innerHTML = `<li class="list-group-item text-center text-muted py-4 small">
+                                        <i class="fa-solid fa-check-double text-success mb-2 fs-5"></i><br>
+                                        No recent incident activity
+                                      </li>`;
+                }
+            })
+            .catch(err => {
+                console.error('Incident fetch failed:', err);
+                list.innerHTML = `<li class="list-group-item text-center text-danger py-3 small">Failed to load timeline</li>`;
+            });
     },
 
     updateDashboardCharts(data) {

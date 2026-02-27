@@ -541,6 +541,24 @@ try {
                         </div>
                     </div>
                 </div>
+                <div class="col-xl-6 reveal" style="--reveal-delay: 500ms;">
+                    <div class="shadow-sm card h-100 border-0">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
+                            <h6 class="mb-0 fw-bold"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>System Activity</h6>
+                            <a href="reports.php" class="small text-decoration-none bg-light px-2 py-1 rounded-2 text-muted border">View All</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="incident-timeline-wrapper" style="max-height: 250px; overflow-y: auto;">
+                                <ul class="list-group list-group-flush" id="incidentTimelineList">
+                                    <li class="list-group-item text-center text-muted py-4">
+                                        <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                                        <br>Loading recent activity...
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Device Comparison -->
