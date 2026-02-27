@@ -1979,7 +1979,8 @@ textarea:focus-visible {
     background: #fff;
     border-radius: 1rem;
     border: 1px solid var(--border-color);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .mini-table-header {
@@ -5522,4 +5523,19 @@ html {
     width: 30px;
     height: 30px;
     font-size: 0.8rem;
+}
+
+/* --- Responsive Table Fixes --- */
+.table-responsive th,
+.mini-table-card th {
+    white-space: nowrap;
+}
+
+/* --- Responsive Flexbox Fixes --- */
+.card,
+.card-body,
+.card-header,
+.tab-content,
+.tab-pane {
+    min-width: 0;
 }

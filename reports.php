@@ -798,7 +798,7 @@ $toValue   = $toDate   ?? '';
             <div id="dashboardView" class="report-view-section reveal" style="display: <?= $reportType === 'all' ? 'block' : 'none' ?>;">
                 
                 <!-- Stat Cards -->
-                <div class="d-flex align-items-center gap-2 mb-4">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
                     <!-- Export Dropdown -->
                     <div class="dropdown">
                         <button class="btn px-3 py-2 rounded-pill d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" style="background: #e8f0fe; color: #1a73e8; border: none; font-weight: 500;">

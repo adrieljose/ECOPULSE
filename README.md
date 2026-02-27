@@ -23,4 +23,3 @@ EcoPulse is a real-time air quality monitoring dashboard designed to provide hig
 4. Run the `serial_to_api.py` script.
 
 ---
-*Created by Antigravity AI*

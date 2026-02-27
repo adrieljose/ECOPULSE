@@ -37,5 +37,5 @@ function db() {
     echo htmlspecialchars(implode('\\n', $errors));
     echo "</pre>";
     exit;
-}
+}    
 ?>
