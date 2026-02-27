@@ -924,6 +924,67 @@ try {
         </div>
     </div>
 
+    <!-- Eco AI Insights Modal -->
+    <div class="modal fade" id="ecoAiModal" tabindex="-1" aria-labelledby="ecoAiModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content overflow-hidden" style="border-radius: 1rem; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                <div class="modal-header border-0 bg-primary text-white position-relative overflow-hidden" style="padding: 1.5rem 2rem;">
+                    <!-- Decorative Background -->
+                    <div class="position-absolute" style="top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; blur(10px);"></div>
+                    
+                    <h5 class="modal-title d-flex align-items-center position-relative z-1" id="ecoAiModalLabel">
+                        <i class="fa-solid fa-wand-magic-sparkles me-3 fs-4 text-warning"></i>
+                        <span class="fw-bold" style="letter-spacing: 0.5px;">Eco AI Insights</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white position-relative z-1" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light" style="padding: 2rem;">
+                    
+                    <!-- Loading State -->
+                    <div id="ecoAiLoading" class="text-center py-5">
+                        <div class="spinner-grow text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h6 class="text-muted mb-0">Analyzing 24-hour environmental data...</h6>
+                        <small class="text-muted opacity-75">Generating intelligent insights</small>
+                    </div>
+
+                    <!-- Result State -->
+                    <div id="ecoAiResult" style="display: none;">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="flex-shrink-0 mt-1">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fa-solid fa-robot"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="bg-white p-4 rounded-4 shadow-sm" style="border: 1px solid rgba(0,0,0,0.05); font-size: 1.05rem; line-height: 1.7; color: #334155;">
+                                    <div id="ecoAiText" class="mb-0"></div>
+                                </div>
+                                <div class="mt-2 text-end">
+                                    <small class="text-muted"><i class="fa-regular fa-clock me-1"></i>Generated at <span id="ecoAiTimestamp">--</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 bg-light" style="padding: 1rem 2rem 1.5rem;">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4 shadow-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" id="btnRefreshEcoAi">
+                        <i class="fa-solid fa-rotate-right me-2"></i>Regenerate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Eco AI Button -->
+    <button class="btn btn-primary rounded-pill shadow-lg d-flex align-items-center gap-2 generate-ai-btn position-fixed" data-bs-toggle="modal" data-bs-target="#ecoAiModal" style="bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1040; padding: 12px 24px; font-weight: 600; font-size: 1rem; border: none; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);">
+        <i class="fa-solid fa-wand-magic-sparkles text-warning" style="animation: pulse 2s infinite;"></i>
+        <span>Generate Eco AI Insights</span>
+    </button>
+
     <!-- SMS Alert Toast -->
     <div id="smsAlertModal" style="display:none;position:fixed;bottom:20px;right:20px;z-index:1050;max-width:320px;">
         <div class="card shadow-sm border-0" style="border-left:4px solid #e74c3c;">
