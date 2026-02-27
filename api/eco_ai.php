@@ -8,6 +8,7 @@ if (!isset($_SESSION['admin']) && !isset($_SESSION['user'])) {
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }
+session_write_close();
 
 // 1. Fetch recent data from the database to build context for the "AI"
 try {
@@ -28,8 +29,8 @@ try {
     // Check for recently offline devices
     $offlineStmt = $pdo->query("
         SELECT COUNT(*) as offline_count 
-        FROM sensors 
-        WHERE updated_at < NOW() - INTERVAL 1 HOUR OR updated_at IS NULL
+        FROM devices 
+        WHERE last_heartbeat < NOW() - INTERVAL 1 HOUR OR last_heartbeat IS NULL
     ");
     $offline = $offlineStmt->fetch(PDO::FETCH_ASSOC)['offline_count'];
 
