@@ -1068,3 +1068,61 @@ const App = {
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
+
+
+});
+
+// --- Eco AI Insights Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnRefreshEcoAi = document.getElementById('btnRefreshEcoAi');
+    const ecoAiModalEl = document.getElementById('ecoAiModal');
+    if (!btnRefreshEcoAi || !ecoAiModalEl) return;
+
+    let insightsLoaded = false;
+
+    const fetchEcoAiInsights = () => {
+        const loadingEl = document.getElementById('ecoAiLoading');
+        const resultEl = document.getElementById('ecoAiResult');
+        const textEl = document.getElementById('ecoAiText');
+        const timeEl = document.getElementById('ecoAiTimestamp');
+
+        loadingEl.style.display = 'block';
+        resultEl.style.display = 'none';
+
+        fetch('api/eco_ai.php')
+            .then(res => res.json())
+            .then(data => {
+                loadingEl.style.display = 'none';
+                if (data.success) {
+                    textEl.innerHTML = data.insight.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    
+                    const dateObj = new Date(data.timestamp);
+                    timeEl.textContent = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    resultEl.style.display = 'block';
+                    insightsLoaded = true;
+                } else {
+                    textEl.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Failed to generate insights: ${data.error}</span>`;
+                    resultEl.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                loadingEl.style.display = 'none';
+                textEl.innerHTML = `<span class="text-danger"><i class="fa-solid fa-link-slash me-2"></i>Network error connecting to AI service.</span>`;
+                resultEl.style.display = 'block';
+                console.error('Eco AI Error:', err);
+            });
+    };
+
+    // Fetch when modal opens (only if not loaded yet)
+    ecoAiModalEl.addEventListener('show.bs.modal', () => {
+        if (!insightsLoaded) {
+            fetchEcoAiInsights();
+        }
+    });
+
+    // Force refresh button
+    btnRefreshEcoAi.addEventListener('click', () => {
+        fetchEcoAiInsights();
+    });
+});
