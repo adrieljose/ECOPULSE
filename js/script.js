@@ -1070,8 +1070,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-});
-
 // --- Eco AI Insights Logic ---
 document.addEventListener('DOMContentLoaded', () => {
     const btnRefreshEcoAi = document.getElementById('btnRefreshEcoAi');
