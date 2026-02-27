@@ -25,7 +25,7 @@ try {
 
     // 1. Fetch INITIAL User Data
     $stmt = $pdo->prepare("SELECT * FROM $userTable WHERE id = :id");
-    $stmt->execute([':id' => $userID]);
+    $stmt->execute([':id' => $userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user) $user = [];
