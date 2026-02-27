@@ -124,6 +124,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         .form-control { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.8rem; }
         .form-control:focus { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: white; box-shadow: none; }
     </style>
+    <!-- PWA Setup -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="/img/ecopulse_logo_final.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[SW] Registered'))
+                    .catch(err => console.log('[SW] Registration failed:', err));
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="background"></div>

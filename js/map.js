@@ -125,6 +125,9 @@ window.initMap = () => {
   }).addTo(mapInstance);
 
   const markerLayer = L.layerGroup().addTo(mapInstance);
+  let heatLayer = null;
+  let heatmapEnabled = false;
+  const toggleHeatmapBtn = document.getElementById('toggleHeatmap');
   const userLayer = L.layerGroup().addTo(mapInstance);
   const markerIndex = new Map();
 
@@ -320,6 +323,31 @@ window.initMap = () => {
       marker.addTo(markerLayer);
       markerIndex.set(sensor.id, marker);
     });
+
+    // Update Heatmap Data
+    if (heatLayer) {
+        mapInstance.removeLayer(heatLayer);
+    }
+    
+    if (heatmapEnabled && typeof L.heatLayer !== 'undefined') {
+        const heatPoints = plotReady
+            .filter(s => s.aqi != null)
+            .map(s => [s.lat, s.lng, Math.min(Number(s.aqi) * 3, 500)]); // Scale AQI for visual intensity
+
+        heatLayer = L.heatLayer(heatPoints, {
+            radius: 35,
+            blur: 25,
+            maxZoom: 14,
+            gradient: { 0.2: 'green', 0.5: 'yellow', 0.8: 'orange', 1.0: 'red' }
+        }).addTo(mapInstance);
+        
+        // Hide regular markers when heatmap is on
+        mapInstance.removeLayer(markerLayer);
+    } else {
+        if (!mapInstance.hasLayer(markerLayer)) {
+             markerLayer.addTo(mapInstance);
+        }
+    }
 
     if (plotReady.length && shouldAutoFit) {
       try {
@@ -1348,6 +1376,21 @@ window.initMap = () => {
   filterAqiBandEl?.addEventListener('change', () => applyFilters(true));
   filterStaleEl?.addEventListener('change', () => applyFilters(true));
   filterHighAqiEl?.addEventListener('change', () => applyFilters(true));
+  toggleHeatmapBtn?.addEventListener('click', () => {
+      heatmapEnabled = !heatmapEnabled;
+      if (heatmapEnabled) {
+          toggleHeatmapBtn.classList.replace('btn-primary', 'btn-danger');
+          toggleHeatmapBtn.style.color = '#fff';
+          toggleHeatmapBtn.style.background = '#e74c3c';
+          toggleHeatmapBtn.innerHTML = '<i class="fa-solid fa-fire"></i> Heatmap On';
+      } else {
+          toggleHeatmapBtn.classList.replace('btn-danger', 'btn-primary');
+          toggleHeatmapBtn.style.color = '#2563eb';
+          toggleHeatmapBtn.style.background = 'white';
+          toggleHeatmapBtn.innerHTML = '<i class="fa-solid fa-layer-group"></i> Heatmap';
+      }
+      applyFilters(false);
+  });
   refreshButton?.addEventListener('click', () => {
     shouldAutoFit = true;
     fetchData(true);

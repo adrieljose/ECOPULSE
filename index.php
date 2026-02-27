@@ -99,6 +99,19 @@ try {
     <script>
         const USER_DEFAULT_DEVICE_ID = <?= json_encode((int)($_SESSION['default_device_id'] ?? 0)) ?>;
     </script>
+    <!-- PWA Setup -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="/img/ecopulse_logo_final.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[SW] Registered'))
+                    .catch(err => console.log('[SW] Registration failed:', err));
+            });
+        }
+    </script>
 </head>
 <body>
     <!-- Mobile Header -->

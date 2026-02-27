@@ -55,6 +55,19 @@ if ($isAdmin) {
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Setup -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="/img/ecopulse_logo_final.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[SW] Registered'))
+                    .catch(err => console.log('[SW] Registration failed:', err));
+            });
+        }
+    </script>
 </head>
 <body>
     <!-- Mobile Header -->

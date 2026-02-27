@@ -58,6 +58,19 @@ if ($isAdmin) {
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Setup -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <link rel="apple-touch-icon" href="/img/ecopulse_logo_final.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[SW] Registered'))
+                    .catch(err => console.log('[SW] Registration failed:', err));
+            });
+        }
+    </script>
 </head>
 <body>
     <!-- Mobile Header -->
@@ -165,6 +178,9 @@ if ($isAdmin) {
                 </div>
                 
                 <div class="d-flex gap-2">
+                    <button class="btn btn-primary shadow-sm rounded-pill d-flex align-items-center gap-2" id="toggleHeatmap" style="background: white; color: #2563eb; border: 1px solid #e0e0e0;">
+                        <i class="fa-solid fa-layer-group"></i> Heatmap
+                    </button>
                     <button id="mapRefreshTop" class="btn btn-primary shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border:none;" title="Refresh Data">
                          <i class="fa-solid fa-rotate-right"></i>
                     </button>
@@ -263,6 +279,7 @@ if ($isAdmin) {
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="js/leaflet-heat.js"></script>
 
     <!-- Custom JS -->
     <script>
