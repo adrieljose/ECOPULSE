@@ -220,6 +220,16 @@ try {
                 </div>
             </div>
 
+            <!-- Phase 2: Live Events Ticker -->
+            <div class="row">
+                <div class="col-12 px-2">
+                    <div class="live-ticker" id="mainLiveTicker">
+                        <div class="live-ticker-dot"></div>
+                        <div class="live-ticker-text"><i class="fa-solid fa-satellite-dish me-2"></i> Listening for real-time sensor updates...</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Main Status Card -->
             <div class="mb-3 row g-3">
                 <div class="col-xl-5 col-lg-6">
