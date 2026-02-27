@@ -119,96 +119,90 @@ try {
 
         <!-- Main Content -->
         <main class="p-4 main-content">
-            <!-- Compact Dashboard Header -->
-            <div class="dashboard-header-bar bg-white rounded-3 shadow-sm px-3 py-2 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <!-- Modern Dashboard Header -->
+            <div class="dashboard-header-modern px-3 py-2 mb-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
                 
-                <!-- Left: Branding -->
+                <!-- Left Cluster: Navigation + Identity -->
                 <div class="d-flex align-items-center gap-3">
-                    <div class="page-title-icon bg-primary-subtle text-primary d-flex align-items-center justify-content-center rounded-2" style="width: 40px; height: 40px; font-size: 1.1rem;">
-                        <i class="fa-solid fa-house"></i>
-                    </div>
-                    <div>
-                        <h1 class="h5 fw-bold mb-0 text-dark">Dashboard</h1>
-                        <p class="mb-0 text-muted x-small line-height-1">Overview</p>
-                    </div>
+                    <!-- Home Button -->
+                    <a href="index.php" class="header-icon-btn shadow-sm" aria-label="Go home">
+                        <i class="fa-solid fa-house fs-5"></i>
+                    </a>
                     
-                    <!-- Vertical Divider -->
-                    <div class="vr mx-2 d-none d-md-block text-muted opacity-25" style="height: 20px;"></div>
+                    <!-- Title & Subtitle -->
+                    <div class="d-flex flex-column justify-content-center">
+                        <h1 class="h5 fw-bold mb-0 text-dark lh-1">Dashboard</h1>
+                        <span class="text-muted small lh-1 mt-1">Overview</span>
+                    </div>
+                </div>
+
+                <!-- Middle Cluster: Filters (Context & Time) -->
+                <div class="header-filter-group shadow-sm">
+                    <!-- Context Selector -->
+                    <div class="input-group input-group-sm flex-nowrap" style="width: auto;">
+                        <span class="input-group-text text-danger"><i class="fa-solid fa-location-dot"></i></span>
+                        <select class="form-select pe-4" id="dashboardDeviceSelector" aria-label="Select Context">
+                            <option value="">THESIS (Global)</option>
+                            <option disabled>Loading...</option>
+                        </select>
+                    </div>
+
+                    <div class="header-divider"></div>
+
+                    <!-- Time Range Selector -->
+                    <div class="dropdown">
+                        <button class="btn d-flex align-items-center gap-2" type="button" id="timeFilterBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-regular fa-clock text-muted"></i>
+                            <span id="timeFilterLabel">1h</span>
+                            <i class="fa-solid fa-chevron-down ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm border-0 rounded-3 mt-1" aria-labelledby="timeFilterBtn">
+                            <li><a class="dropdown-item active rounded-2" href="#" data-time="1h">Last 1 Hour</a></li>
+                            <li><a class="dropdown-item rounded-2" href="#" data-time="6h">Last 6 Hours</a></li>
+                            <li><a class="dropdown-item rounded-2" href="#" data-time="12h">Last 12 Hours</a></li>
+                            <li><a class="dropdown-item rounded-2" href="#" data-time="24h">Last 24 Hours</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Right Cluster: Actions + User Menu -->
+                <div class="d-flex align-items-center gap-3 justify-content-between justify-content-lg-end">
                     
-                    <!-- Context Controls (Desktop) -->
-                    <div class="d-none d-md-flex align-items-center gap-2">
-                        <!-- Device Selector -->
-                        <div class="input-group input-group-sm" style="min-width: 200px;">
-                            <span class="input-group-text bg-light border-0 ps-2"><i class="fa-solid fa-location-dot text-danger"></i></span>
-                            <select class="form-select border-0 bg-light fw-medium shadow-none py-1" id="dashboardDeviceSelector" style="font-size: 0.85rem;">
-                                <option value="">Global Average</option>
-                                <option disabled>Loading...</option>
-                            </select>
-                        </div>
-                        <!-- Time Filter -->
+                    <!-- Actions Group -->
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Guide Button -->
+                        <button class="btn btn-white btn-sm header-action-btn d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#aqiGuideModal">
+                            <i class="fa-solid fa-book-open text-primary"></i> <span class="d-none d-sm-inline">Guide</span>
+                        </button>
+                        
+                        <!-- Export Button -->
                         <div class="dropdown">
-                            <button class="btn btn-light btn-sm fw-medium border-0 px-2 py-1" type="button" id="timeFilterBtn" data-bs-toggle="dropdown" style="font-size: 0.85rem;">
-                                <i class="fa-regular fa-clock me-1 text-muted"></i> <span id="timeFilterLabel">1h</span>
+                            <button class="btn btn-primary btn-sm header-action-btn d-flex align-items-center gap-2 shadow-sm border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa-solid fa-file-export"></i> <span class="d-none d-sm-inline">Export</span>
                             </button>
-                            <ul class="dropdown-menu shadow-sm border-0 mt-1 rounded-2 p-1" style="min-width: 140px;">
-                                <li><a class="dropdown-item py-1 rounded-1 active" href="#" data-time="1h">Last 1 Hour</a></li>
-                                <li><a class="dropdown-item py-1 rounded-1" href="#" data-time="6h">Last 6 Hours</a></li>
-                                <li><a class="dropdown-item py-1 rounded-1" href="#" data-time="12h">Last 12 Hours</a></li>
-                                <li><a class="dropdown-item py-1 rounded-1" href="#" data-time="24h">Last 24 Hours</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-1 rounded-3">
+                                <li><a class="dropdown-item rounded-2" href="export_pdf.php?report=aqi_reports&from=<?= $latestReadingDate ?>&to=<?= $latestReadingDate ?>" target="_blank"><i class="fa-regular fa-file-lines me-2 text-muted"></i>Today's Report</a></li>
+                                <li><a class="dropdown-item rounded-2" href="export_pdf.php?report=devices" target="_blank"><i class="fa-solid fa-network-wired me-2 text-muted"></i>Inventory</a></li>
                             </ul>
                         </div>
                     </div>
-                </div>
 
-                <!-- Right: Actions -->
-                <div class="d-flex align-items-center gap-2">
-                    
-                    <!-- Mobile Trigger -->
-                    <button class="btn btn-light btn-sm btn-icon d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileControls">
-                        <i class="fa-solid fa-sliders"></i>
-                    </button>
+                    <div class="vr bg-secondary opacity-25 d-none d-md-block" style="width: 1px; min-height: 24px;"></div>
 
-                    <!-- Actions -->
-                    <button class="btn btn-white border shadow-sm btn-sm fw-medium px-3 py-1 d-none d-sm-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#aqiGuideModal">
-                        <i class="fa-solid fa-book-open text-primary"></i> <span class="d-none d-lg-inline">Guide</span>
-                    </button>
-
+                    <!-- User Menu -->
                     <div class="dropdown">
-                        <button class="btn btn-primary btn-sm fw-medium shadow-sm px-3 py-1 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-download"></i> <span class="d-none d-sm-inline">Export</span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-1 rounded-2 p-1">
-                            <li><a class="dropdown-item py-1 rounded-1" href="export_pdf.php?report=aqi_reports&from=<?= $latestReadingDate ?>&to=<?= $latestReadingDate ?>" target="_blank">Today's Report</a></li>
-                            <li><a class="dropdown-item py-1 rounded-1" href="export_pdf.php?report=devices" target="_blank">Inventory</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="vr mx-1 d-none d-sm-block text-muted opacity-25" style="height: 20px;"></div>
-                    
-                    <!-- User Profile -->
-                    <div class="d-flex align-items-center gap-2 ps-1">
-                        <div class="user-avatar-circle bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px; font-size: 0.85rem;">
-                            <?= htmlspecialchars(substr($currentUserLabel, 0, 1)) ?: 'U' ?>
-                        </div>
-                        <div class="d-none d-xl-block">
-                             <div class="fw-bold text-dark x-small line-height-1 mb-0"><?= htmlspecialchars($currentUserLabel) ?></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Mobile Controls -->
-                <div class="collapse w-100 mt-2 d-md-none" id="mobileControls">
-                    <div class="card card-body bg-light border-0 p-2 rounded-3">
-                         <div class="d-flex flex-column gap-2">
-                            <select class="form-select form-select-sm" id="mobileDeviceSelector">
-                                <option value="">Global Average</option>
-                            </select>
-                            <div class="d-flex gap-1">
-                                <button class="btn btn-white border btn-sm flex-fill">1h</button>
-                                <button class="btn btn-white border btn-sm flex-fill">6h</button>
-                                <button class="btn btn-white border btn-sm flex-fill">24h</button>
+                        <button class="header-user-menu d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="header-avatar bg-primary text-white fw-bold d-flex align-items-center justify-content-center rounded-circle">
+                                <?= htmlspecialchars(substr($currentUserLabel, 0, 1)) ?: 'U' ?>
                             </div>
-                         </div>
+                            <span class="fw-bold text-dark small pe-1 d-none d-xl-block"><?= htmlspecialchars($currentUserLabel) ?></span>
+                            <i class="fa-solid fa-chevron-down text-muted d-none d-xl-block" style="font-size: 0.7rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-1 rounded-3">
+                            <li><a class="dropdown-item rounded-2" href="profile.php"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li><a class="dropdown-item text-danger rounded-2" href="logout.php"><i class="fa-solid fa-right-from-bracket me-2"></i>Sign Out</a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
