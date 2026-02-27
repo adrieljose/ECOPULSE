@@ -57,6 +57,7 @@ $readingClass = $isReading ? 'text-success' : 'text-danger';
             max-width: 700px;
         }
     </style>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <!-- PWA Setup -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0d6efd">
@@ -162,6 +163,85 @@ $readingClass = $isReading ? 'text-success' : 'text-danger';
             }
         };
 
+        let currentForecastChart = null;
+
+        const renderForecastChart = (trendData, forecastData) => {
+            const chartEl = document.getElementById('forecastChart');
+            if (!chartEl) return;
+
+            // Clear loading spinner if present
+            if(chartEl.innerHTML.includes('fa-spinner')) {
+                chartEl.innerHTML = '';
+            }
+
+            if (!forecastData || !trendData || !trendData.aqi || trendData.aqi.length === 0) {
+                chartEl.innerHTML = '<div class="text-center text-muted py-5"><i class="fa-solid fa-chart-line mb-3 fa-2x opacity-50"></i><br>Not enough recent data to generate a forecast. Keep the device running!</div>';
+                return;
+            }
+
+            // We want to draw a continuous line: Historical Data -> Current Point -> Forecasted Point
+            // To make it look good, let's grab the last 10 historical points so we see the trend leading up to the forecast.
+            const historySize = 10;
+            const historicalAqi = trendData.aqi.slice(-historySize);
+            const historicalLabels = trendData.labels.slice(-historySize);
+
+             // Prepare category array
+            const xCategories = [...historicalLabels, "In 30 Mins"];
+
+            const options = {
+                series: [
+                    {
+                        name: 'Historical AQI',
+                        data: [...historicalAqi, null] 
+                    },
+                    {
+                        name: 'Predicted AQI',
+                        data: [...Array(historicalAqi.length - 1).fill(null), historicalAqi[historicalAqi.length-1], forecastData.forecast_aqi]
+                    }
+                ],
+                chart: {
+                    type: 'area',
+                    height: 250,
+                    toolbar: { show: false },
+                    animations: { enabled: true, easing: 'easeinout', speed: 800 }
+                },
+                colors: ['#0d6efd', '#fd7e14'], // Historical (Blue), Forecast (Orange)
+                dataLabels: { enabled: false },
+                stroke: {
+                    curve: 'smooth',
+                    width: [2, 3],
+                    dashArray: [0, 5] // Solid line for history, dashed for forecast
+                },
+                fill: {
+                    type: ['gradient', 'gradient'],
+                    gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.4,
+                        opacityTo: 0.05,
+                        stops: [0, 90, 100]
+                    }
+                },
+                xaxis: {
+                    categories: xCategories,
+                    labels: { style: { colors: '#6c757d' } }
+                },
+                yaxis: {
+                    title: { text: 'AQI Level' },
+                    min: 0,
+                    max: Math.max(200, forecastData.forecast_aqi + 50)
+                },
+                legend: { position: 'top', horizontalAlign: 'right' },
+                tooltip: { shared: true, intersect: false }
+            };
+
+            if (currentForecastChart) {
+                currentForecastChart.updateOptions(options);
+            } else {
+                currentForecastChart = new ApexCharts(chartEl, options);
+                currentForecastChart.render();
+            }
+        };
+
         const fetchLatestData = () => {
             if (!deviceId) return;
             const url = `api/dashboard.php?device_id=${encodeURIComponent(deviceId)}&_t=${Date.now()}`;
@@ -183,6 +263,9 @@ $readingClass = $isReading ? 'text-success' : 'text-danger';
                     } else {
                         renderDataStatus('none', ts ? ts.toLocaleTimeString() : null);
                     }
+
+                    // Render the predictive forecast chart
+                    renderForecastChart(data.trend, data.forecast);
                 })
                 .catch(err => console.error('Failed to fetch latest data', err));
         };
