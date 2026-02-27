@@ -2,6 +2,8 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
+require_once __DIR__ . '/lib/forecast_engine.php';
+require_once __DIR__ . '/db.php';
 
 // --- DB CONFIG ---
 $db_host = 'localhost';
@@ -56,16 +58,40 @@ $sql = "
 ";
 
 $result = $mysqli->query($sql);
-$sensors = [];
+if (!$result) {
+    $mysqli->close();
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to fetch device list']);
+    exit;
+}
 
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $aqi = $row['aqi'] !== null ? (int)$row['aqi'] : null;
-        $recordedAt = !empty($row['recorded_at']) ? strtotime($row['recorded_at']) : null;
-        $heartbeatAt = !empty($row['last_heartbeat']) ? strtotime($row['last_heartbeat']) : null;
-        $now = time();
-        $readingAgeMin = $recordedAt ? ($now - $recordedAt) / 60 : null;
-        $hbAgeMin = $heartbeatAt ? ($now - $heartbeatAt) / 60 : null;
+$rows = [];
+while ($row = $result->fetch_assoc()) {
+    $rows[] = $row;
+}
+
+$forecastMap = [];
+if (!empty($rows)) {
+    try {
+        $forecastIds = array_values(array_filter(array_map(static function ($r) {
+            return isset($r['id']) ? (int)$r['id'] : 0;
+        }, $rows), static fn(int $id): bool => $id > 0));
+        if ($forecastIds) {
+            $forecastMap = eco_build_forecast_map(db(), $forecastIds, 120, 30);
+        }
+    } catch (Throwable $e) {
+        $forecastMap = [];
+    }
+}
+
+$sensors = [];
+foreach ($rows as $row) {
+    $aqi = $row['aqi'] !== null ? (int)$row['aqi'] : null;
+    $recordedAt = !empty($row['recorded_at']) ? strtotime($row['recorded_at']) : null;
+    $heartbeatAt = !empty($row['last_heartbeat']) ? strtotime($row['last_heartbeat']) : null;
+    $now = time();
+    $readingAgeMin = $recordedAt ? ($now - $recordedAt) / 60 : null;
+    $hbAgeMin = $heartbeatAt ? ($now - $heartbeatAt) / 60 : null;
 
         // Derive status with preference for fresh readings, then heartbeat. Include "searching" when active but no fresh data.
         $status = $row['device_status'] ?: 'offline';
@@ -162,11 +188,11 @@ if ($result) {
             $aqi = max(0, min(500, (int)$aqi));
         }
 
-        $sensors[] = [
-            'id'   => (int)$row['id'],
-            'code' => $row['device_code'],
-            'name' => $row['name'],
-            'area' => $row['barangay_name'] ?: 'Device',
+    $sensors[] = [
+        'id'   => (int)$row['id'],
+        'code' => $row['device_code'],
+        'name' => $row['name'],
+        'area' => $row['barangay_name'] ?: 'Device',
         'lat'  => $row['lat'] !== null ? (float)$row['lat'] : null,
         'lng'  => $row['lng'] !== null ? (float)$row['lng'] : null,
         'isActive' => (int)($row['is_active'] ?? 1),
@@ -177,12 +203,12 @@ if ($result) {
         'pm10'   => $row['pm10'] !== null ? (float)$row['pm10'] : null,
         'o3'     => $row['o3'] !== null ? (float)$row['o3'] : null,
             'co'     => $row['co'] !== null ? (float)$row['co'] : null,
-            'co2'    => $row['co2'] !== null ? (float)$row['co2'] : null,
+        'co2'    => $row['co2'] !== null ? (float)$row['co2'] : null,
         'temperature' => $row['temperature'] !== null ? (float)$row['temperature'] : null,
         'humidity'    => $row['humidity'] !== null ? (float)$row['humidity'] : null,
-        'updatedAt' => $updatedAt
+        'updatedAt' => $updatedAt,
+        'forecast' => $forecastMap[(int)$row['id']] ?? null,
     ];
-}
 }
 
 $mysqli->close();

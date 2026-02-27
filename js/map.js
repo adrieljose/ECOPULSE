@@ -419,6 +419,13 @@ window.initMap = () => {
         const cooldownRemaining = getAlertCooldownRemaining(sensor.id);
         const cooldownLabel = cooldownRemaining > 0 ? `Cooldown ${formatCooldown(cooldownRemaining)}` : 'Cooldown ready';
         const cooldownClass = cooldownRemaining > 0 ? 'text-warning' : 'text-success';
+        const tempValue = sensor.temperature ?? sensor.temp;
+        const forecast = sensor.forecast || null;
+        const hasForecast = forecast && forecast.forecast_aqi !== null && forecast.forecast_aqi !== undefined;
+        const forecastText = hasForecast
+          ? `30m ${forecast.direction || 'steady'}: ${forecast.forecast_aqi}`
+          : '30m forecast unavailable';
+        const forecastClass = hasForecast ? 'text-primary' : 'text-muted';
 
         // Use Grid Column for new layout
         const codeLabel = sensor.device_code ? sensor.device_code : `DEV-${String(sensor.id).padStart(4, '0')}`;
@@ -448,8 +455,9 @@ window.initMap = () => {
 
                 <div class="station-metrics mb-3">
                     <span class="badge bg-light text-dark border me-1"><i class="fa-solid fa-cloud me-1 text-muted"></i>PM2.5: ${sensor.pm25 || '--'}</span>
-                    <span class="badge bg-light text-dark border"><i class="fa-solid fa-temperature-half me-1 text-muted"></i>${sensor.temp || '--'}°C</span>
+                    <span class="badge bg-light text-dark border"><i class="fa-solid fa-temperature-half me-1 text-muted"></i>${tempValue || '--'}°C</span>
                 </div>
+                <div class="small ${forecastClass} mb-2"><i class="fa-solid fa-wave-square me-1"></i>${forecastText}</div>
 
                 <div class="station-footer d-flex justify-content-between align-items-center pt-3 border-top border-light">
                   <div class="station-updated text-muted" style="font-size: 0.75rem;">
@@ -812,7 +820,7 @@ window.initMap = () => {
   }
 
   // Event Delegation for Toggle (Start/Stop) Button
-    if (!window.ecoPulseToggleHandlerAttached) {
+  if (!window.ecoPulseToggleHandlerAttached) {
     document.addEventListener('click', async (e) => {
       const btn = e.target.closest('.toggle-device-btn');
       if (btn) {
@@ -820,6 +828,15 @@ window.initMap = () => {
         e.stopPropagation();
         const id = btn.getAttribute('data-id');
         if (!id) return;
+
+        // Confirmation for Stop Action
+        const activeAttr = btn.getAttribute('data-active');
+        const isStopAction = activeAttr === 'true' || activeAttr === '1';
+
+        if (isStopAction) {
+          if (!confirm('Are you sure you want to STOP this device?')) return;
+        }
+
         const holdKey = String(id);
 
         // Disable button and show spinner

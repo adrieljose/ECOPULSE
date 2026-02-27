@@ -12,6 +12,7 @@ header('Cache-Control: no-cache');
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../lib/activity_logger.php';
+require_once __DIR__ . '/../lib/incident_logger.php';
 
 // Provider configuration (env-driven; IPROG as default)
 $IPROG_BASE_URL   = rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/');
@@ -124,6 +125,7 @@ try {
             LEFT JOIN barangays b ON b.id = d.barangay_id
             WHERE d.is_active = 1
               AND r.recorded_at = (SELECT MAX(r2.recorded_at) FROM readings r2 WHERE r2.device_id = r.device_id)
+              AND r.recorded_at >= (NOW() - INTERVAL 5 MINUTE)
             ORDER BY r.recorded_at DESC
             LIMIT 10
         ");
@@ -137,6 +139,7 @@ try {
             JOIN devices d ON d.id = r.device_id
             LEFT JOIN barangays b ON b.id = d.barangay_id
             WHERE d.id = ? AND d.is_active = 1
+              AND r.recorded_at >= (NOW() - INTERVAL 5 MINUTE)
             ORDER BY r.recorded_at DESC
             LIMIT 1
         ");
@@ -196,9 +199,24 @@ try {
         $devId = (int)$device['device_id'];
         $aqiVal = (float)$device['aqi'];
         $severity = ($aqiVal >= 151) ? 'red' : 'yellow';
+        $incidentSeverity = $severity === 'red' ? 'critical' : 'warning';
         $deviceName = $device['device_name'] ?: 'Device';
         $areaName = $device['barangay_name'] ?: 'your area';
         $barangayId = $device['barangay_id'] ?? null;
+
+        eco_log_incident(
+            $pdo,
+            $devId,
+            'high_aqi_detected',
+            $incidentSeverity,
+            "High AQI detected on {$deviceName}",
+            [
+                'aqi' => $aqiVal,
+                'area' => $areaName,
+                'severity' => $severity,
+            ],
+            120
+        );
         
         // Check cooldown: allow resend after cooldown window per device/severity
         $cooldownCheck = $pdo->prepare("
@@ -217,6 +235,19 @@ try {
         if ($lastAlert) {
             $lastSentAt = $lastAlert['sent_sms_at'] ? strtotime($lastAlert['sent_sms_at']) : null;
             if ($lastSentAt !== null && (time() - $lastSentAt) < $cooldownSeconds) {
+                eco_log_incident(
+                    $pdo,
+                    $devId,
+                    'sms_cooldown_active',
+                    'info',
+                    "SMS cooldown active for {$deviceName}",
+                    [
+                        'aqi' => $aqiVal,
+                        'last_sent_at' => $lastAlert['sent_sms_at'],
+                        'cooldown_seconds' => $cooldownSeconds,
+                    ],
+                    90
+                );
                 continue;
             }
         }
@@ -236,6 +267,19 @@ try {
             $threshold = ($severity === 'red') ? 151 : 101;
             $ins->execute([$devId, $aqiVal, $threshold, $severity, $msg]);
             $alertId = $pdo->lastInsertId();
+            eco_log_incident(
+                $pdo,
+                $devId,
+                'alert_opened',
+                $incidentSeverity,
+                "Alert opened for {$deviceName}",
+                [
+                    'aqi' => $aqiVal,
+                    'alert_id' => (int)$alertId,
+                    'severity' => $severity,
+                ],
+                60
+            );
         } else {
             $alertId = $existingAlert['id'];
         }
@@ -324,6 +368,21 @@ try {
         // Update alert status
         if ($sentCount > 0) {
             $pdo->prepare("UPDATE alerts SET sent_sms_at = NOW(), sms_attempts = sms_attempts + 1, last_sms_error = NULL WHERE id = ?")->execute([$alertId]);
+
+            eco_log_incident(
+                $pdo,
+                $devId,
+                'sms_sent',
+                $incidentSeverity,
+                "SMS alert sent for {$deviceName}",
+                [
+                    'aqi' => $aqiVal,
+                    'recipients' => $sentCount,
+                    'alert_id' => (int)$alertId,
+                    'mode' => $IPROG_API_TOKEN === '' ? 'demo' : 'live',
+                ],
+                30
+            );
             
             $alertsSent[] = [
                 'device_id' => $devId,
@@ -339,6 +398,20 @@ try {
             try {
                 logActivity($pdo, 'system', 0, 'SMS Alert Sent', "Device $deviceName ($areaName) AQI $aqiVal - Sent to $sentCount recipients", 'SMS');
             } catch (Throwable $e) { /* ignore */ }
+        } else {
+            eco_log_incident(
+                $pdo,
+                $devId,
+                'sms_failed',
+                $incidentSeverity,
+                "SMS delivery failed for {$deviceName}",
+                [
+                    'aqi' => $aqiVal,
+                    'attempted_recipients' => count($mobiles),
+                    'alert_id' => (int)$alertId,
+                ],
+                30
+            );
         }
     }
     

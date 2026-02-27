@@ -168,9 +168,10 @@ try {
                 <h2 class="text-gray-800 fw-bold mb-1">My Profile</h2>
                 <p class="text-muted mb-0">Manage your account settings and view activity.</p>
             </div>
-            <div class="ms-auto header-clock text-center">
-                <div class="header-clock-time" id="clockTime">--:--:--</div>
-                <div class="header-clock-date" id="clockDate">Loading date…</div>
+            <div class="ms-auto d-none d-xl-flex align-items-center text-muted small pe-2 gap-2">
+                 <i class="fa-regular fa-clock"></i>
+                 <span id="clockTime" class="fw-medium text-dark">--:--</span>
+                 <span id="clockDate" class="d-none">---</span>
             </div>
         </div>
 

@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../lib/forecast_engine.php';
+require_once __DIR__ . '/../lib/incident_logger.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -139,8 +141,21 @@ if ($latest) {
     unset($row);
 }
 
+$forecastMap = [];
+$deviceIdsForForecast = array_values(array_filter(array_map(static function ($r) {
+    return isset($r['device_id']) ? (int)$r['device_id'] : 0;
+}, $latest), static fn(int $id): bool => $id > 0));
+if ($deviceIdsForForecast) {
+    try {
+        $forecastMap = eco_build_forecast_map($pdo, $deviceIdsForForecast, 120, 30);
+    } catch (Throwable $e) {
+        $forecastMap = [];
+    }
+}
+
 // Overall settings (Global or Specific Device)
 $selectedDeviceName = 'Global Average';
+$selectedDeviceNumericId = null;
 $overall = ['pm1'=>null,'pm25'=>null,'pm10'=>null,'o3'=>null,'co'=>null,'co2'=>null,'temperature'=>null,'humidity'=>null,'overallAQI'=>null];
 
 // AQI breakpoint tables (US EPA style) per pollutant
@@ -203,6 +218,7 @@ if ($deviceId) {
     foreach ($latest as $row) {
         if ($row['device_code'] === $deviceId || (string)$row['device_id'] === $deviceId) {
             $selectedDeviceName = $row['name'];
+            $selectedDeviceNumericId = (int)$row['device_id'];
             $overall = [
         'pm1' => $row['pm1'],
         'pm25'=> $row['pm25'],
@@ -247,6 +263,50 @@ if ($deviceId) {
         'humidity' => $count['humidity'] ? round($sum['humidity']/$count['humidity'],1) : null,
         'overallAQI' => null // will compute from pollutant sub-indices
     ];
+}
+
+$selectedForecast = null;
+if ($selectedDeviceNumericId !== null && isset($forecastMap[$selectedDeviceNumericId])) {
+    $selectedForecast = $forecastMap[$selectedDeviceNumericId];
+} elseif ($selectedDeviceNumericId === null && !empty($forecastMap)) {
+    $currentVals = [];
+    $futureVals = [];
+    $confVals = [];
+    $drivers = [];
+
+    foreach ($forecastMap as $fc) {
+        if (isset($fc['current_aqi']) && is_numeric($fc['current_aqi'])) $currentVals[] = (float)$fc['current_aqi'];
+        if (isset($fc['forecast_aqi']) && is_numeric($fc['forecast_aqi'])) $futureVals[] = (float)$fc['forecast_aqi'];
+        if (isset($fc['confidence_percent']) && is_numeric($fc['confidence_percent'])) $confVals[] = (float)$fc['confidence_percent'];
+        if (!empty($fc['top_drivers']) && is_array($fc['top_drivers'])) {
+            foreach ($fc['top_drivers'] as $drv) {
+                $drivers[$drv] = ($drivers[$drv] ?? 0) + 1;
+            }
+        }
+    }
+
+    if ($currentVals && $futureVals) {
+        arsort($drivers);
+        $globalCurrent = (int) round(array_sum($currentVals) / count($currentVals));
+        $globalForecast = (int) round(array_sum($futureVals) / count($futureVals));
+        $globalDelta = $globalForecast - $globalCurrent;
+        $globalDirection = abs($globalDelta) <= 2 ? 'steady' : ($globalDelta > 0 ? 'rising' : 'falling');
+        $globalConf = $confVals ? (int) round(array_sum($confVals) / count($confVals)) : null;
+
+        $selectedForecast = [
+            'horizon_minutes' => 30,
+            'current_aqi' => $globalCurrent,
+            'forecast_aqi' => $globalForecast,
+            'delta' => $globalDelta,
+            'direction' => $globalDirection,
+            'confidence_percent' => $globalConf,
+            'confidence' => $globalConf !== null ? ($globalConf >= 75 ? 'high' : ($globalConf >= 55 ? 'medium' : 'low')) : 'low',
+            'category' => eco_aqi_category($globalForecast),
+            'top_drivers' => array_slice(array_keys($drivers), 0, 2),
+            'points_used' => count($forecastMap),
+            'computed_at' => date(DATE_ATOM),
+        ];
+    }
 }
 
 // Compute AQI per pollutant and overall (take worst sub-index)
@@ -467,7 +527,8 @@ foreach ($latest as $row) {
         'humidity' => $row['humidity'],
         'status' => $status,
         'isActive' => (int)($row['is_active'] ?? 1),
-        'updatedAt' => $recTs ? date(DATE_ATOM, $recTs) : ($hbTs ? date(DATE_ATOM, $hbTs) : null)
+        'updatedAt' => $recTs ? date(DATE_ATOM, $recTs) : ($hbTs ? date(DATE_ATOM, $hbTs) : null),
+        'forecast' => $forecastMap[(int)$row['device_id']] ?? null,
     ];
 }
 
@@ -504,6 +565,13 @@ foreach ($latest as $row) {
     }
 }
 
+$recentIncidents = [];
+try {
+    $recentIncidents = eco_recent_incidents($pdo, 8, $selectedDeviceNumericId);
+} catch (Throwable $e) {
+    $recentIncidents = [];
+}
+
 echo json_encode([
   'generatedAt' => date(DATE_ATOM),
   'selectedDeviceName' => $selectedDeviceName,
@@ -525,6 +593,8 @@ echo json_encode([
   'sensorsTotal' => count($latest),
   'dominantPollutant' => $dominantPollutant,
   'dominantPollutantValue' => $dominantPollutantValue,
+  'forecast' => $selectedForecast,
   'sensors' => $sensors,
-  'alerts' => $alerts
+  'alerts' => $alerts,
+  'incidents' => $recentIncidents
 ]);

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/sms_sender_lib.php';
+require_once __DIR__ . '/../lib/incident_logger.php';
 
 function processAlerts($deviceId, $metrics) {
     try {
@@ -60,6 +61,34 @@ function checkAndInsertAlert($pdo, $deviceId, $metric, $value, $limits) {
     
     if (!$level) return; // Safe levels
 
+    // Debounce noise: require at least 2 consecutive recent readings above the same threshold.
+    // This reduces false positives from one-off spikes.
+    $targetThreshold = ($level === 'critical') ? $limits['critical'] : $limits['caution'];
+    $metricColumn = strtolower($metric) === 'aqi' ? 'aqi' : strtolower($metric);
+    if (preg_match('/^[a-z0-9_]+$/', $metricColumn)) {
+        $recentStmt = $pdo->prepare("
+            SELECT {$metricColumn} AS metric_value
+            FROM readings
+            WHERE device_id = :did
+            ORDER BY recorded_at DESC
+            LIMIT 3
+        ");
+        $recentStmt->execute([':did' => $deviceId]);
+        $recentRows = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
+        $consecutive = 0;
+        foreach ($recentRows as $r) {
+            $rv = isset($r['metric_value']) && is_numeric($r['metric_value']) ? (float)$r['metric_value'] : null;
+            if ($rv !== null && $rv >= $targetThreshold) {
+                $consecutive++;
+            } else {
+                break;
+            }
+        }
+        if ($consecutive < 2) {
+            return;
+        }
+    }
+
     // Check for existing OPEN alert for this device+metric
     // We want to avoid duplicate alerts. 
     // Logic: If there is an 'open' alert created in the last 6 hours, don't create a new one.
@@ -83,6 +112,20 @@ function checkAndInsertAlert($pdo, $deviceId, $metric, $value, $limits) {
             ':msg' => $msg
         ]);
         error_log("New Alert Created: Device $deviceId, $metric $value");
+        eco_log_incident(
+            $pdo,
+            (int)$deviceId,
+            'alert_opened',
+            $level === 'critical' ? 'critical' : 'warning',
+            "Alert opened for device {$deviceId}",
+            [
+                'metric' => $metric,
+                'value' => (float)$value,
+                'threshold' => (float)$threshold,
+                'level' => $level,
+            ],
+            30
+        );
         
         // IMMEDIATE SEND (Synchronous)
         sendAlertSMS($pdo, $pdo->lastInsertId());
@@ -94,5 +137,20 @@ function checkAndInsertAlert($pdo, $deviceId, $metric, $value, $limits) {
         // So updating value is fine.
         $upd = $pdo->prepare("UPDATE alerts SET value = :v, triggered_at = NOW() WHERE id = :id");
         $upd->execute([':v' => $value, ':id' => $existing['id']]);
+        eco_log_incident(
+            $pdo,
+            (int)$deviceId,
+            'alert_updated',
+            $level === 'critical' ? 'critical' : 'warning',
+            "Alert updated for device {$deviceId}",
+            [
+                'metric' => $metric,
+                'value' => (float)$value,
+                'threshold' => (float)$threshold,
+                'level' => $level,
+                'alert_id' => (int)$existing['id'],
+            ],
+            30
+        );
     }
 }

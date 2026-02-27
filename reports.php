@@ -683,18 +683,29 @@ $toValue   = $toDate   ?? '';
                     <h1 class="mb-0 h2 fw-bold">System Reports</h1>
             </div>
                 <div class="header-actions d-flex align-items-center gap-3">
-                    <div class="d-none d-lg-flex align-items-center gap-2 px-3 py-2 rounded-3 bg-white shadow-sm">
-                        <div class="user-avatar-placeholder d-flex align-items-center justify-content-center text-uppercase fw-bold text-primary">
-                            <?= htmlspecialchars(substr($currentUserLabel, 0, 1)) ?: 'U' ?>
-                        </div>
-                        <div class="d-flex flex-column">
-                            <span class="fw-semibold small"><?= htmlspecialchars($currentUserLabel) ?></span>
-                            <span class="text-muted small"><?= htmlspecialchars($currentRole) ?></span>
-                        </div>
+                    <!-- Compact Clock -->
+                    <div class="d-none d-xl-flex align-items-center text-muted small pe-2 gap-2">
+                         <i class="fa-regular fa-clock"></i>
+                         <span id="clockTime" class="fw-medium text-dark">--:--</span>
+                         <span id="clockDate" class="d-none">---</span>
                     </div>
-                    <div class="header-clock d-none d-xl-flex bg-white px-3 py-2 rounded-3 shadow-sm border border-light">
-                        <div class="header-clock-time text-primary fw-bold" id="clockTime">--:--</div>
-                        <div class="header-clock-date text-muted small ms-2" id="clockDate">---, --- --</div>
+
+                    <div class="vr bg-secondary opacity-25 d-none d-xl-block" style="width: 1px; min-height: 24px;"></div>
+
+                    <!-- User Menu -->
+                    <div class="dropdown">
+                        <button class="header-user-menu d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: white; border: 1px solid #e0e0e0; padding: 6px 12px; border-radius: 50px; cursor: pointer;">
+                            <div class="header-avatar bg-primary text-white fw-bold d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <?= htmlspecialchars(substr($currentUserLabel, 0, 1)) ?: 'U' ?>
+                            </div>
+                            <span class="fw-bold text-dark small pe-1 d-none d-xl-block"><?= htmlspecialchars($currentUserLabel) ?></span>
+                            <i class="fa-solid fa-chevron-down text-muted d-none d-xl-block" style="font-size: 0.7rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2 rounded-3">
+                            <li><a class="dropdown-item rounded-2" href="profile.php"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li><a class="dropdown-item text-danger rounded-2" href="logout.php"><i class="fa-solid fa-right-from-bracket me-2"></i>Sign Out</a></li>
+                        </ul>
                     </div>
                 </div>
             </header>

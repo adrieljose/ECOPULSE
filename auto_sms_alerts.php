@@ -5,6 +5,7 @@
  */
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/lib/activity_logger.php';
+require_once __DIR__ . '/lib/incident_logger.php';
 
 $pdo = db();
 
@@ -163,6 +164,13 @@ $updateSuccess = $pdo->prepare("UPDATE alerts SET sent_sms_at = NOW(), sms_attem
 $updateFail = $pdo->prepare("UPDATE alerts SET sms_attempts = sms_attempts + 1, last_sms_error = :err WHERE id = :id");
 
 foreach ($alerts as $alert) {
+    $metric = strtoupper($alert['metric']);
+    $value = $alert['value'] ?? '--';
+    $threshold = $alert['threshold'] ?? '--';
+    $area = $alert['barangay_name'] ?: 'your area';
+    $device = $alert['device_name'] ?: 'device';
+    $when = $alert['triggered_at'] ? date('M d, Y H:i', strtotime($alert['triggered_at'])) : 'recently';
+
     $subs = [];
     if (!empty($alert['device_id'])) {
         $subStmt->execute([
@@ -173,19 +181,25 @@ foreach ($alerts as $alert) {
 
     if (empty($subs)) {
         echo "[WARN] Alert {$alert['id']} has no subscribers in barangay_id {$alert['barangay_id']}.\n";
+        eco_log_incident(
+            $pdo,
+            (int)($alert['device_id'] ?? 0),
+            'sms_skipped_no_subscribers',
+            'warning',
+            "SMS skipped: no subscribers for {$device}",
+            [
+                'alert_id' => (int)$alert['id'],
+                'area' => $area,
+                'aqi' => $value,
+            ],
+            120
+        );
         $updateFail->execute([
             ':err' => 'No subscribers for area',
             ':id'  => (int) $alert['id'],
         ]);
         continue;
     }
-
-    $metric = strtoupper($alert['metric']);
-    $value = $alert['value'] ?? '--';
-    $threshold = $alert['threshold'] ?? '--';
-    $area = $alert['barangay_name'] ?: 'your area';
-    $device = $alert['device_name'] ?: 'device';
-    $when = $alert['triggered_at'] ? date('M d, Y H:i', strtotime($alert['triggered_at'])) : 'recently';
 
     $valNum = is_numeric($value) ? (float)$value : null;
     $thrNum = is_numeric($threshold) ? (float)$threshold : null;
@@ -255,6 +269,22 @@ foreach ($alerts as $alert) {
     if ($allSent) {
         $updateSuccess->execute([':id' => (int) $alert['id']]);
 
+        eco_log_incident(
+            $pdo,
+            (int)($alert['device_id'] ?? 0),
+            'sms_sent',
+            $isCritical ? 'critical' : 'warning',
+            "SMS alert sent for {$device}",
+            [
+                'alert_id' => (int)$alert['id'],
+                'aqi' => is_numeric($value) ? (float)$value : $value,
+                'severity' => $isCritical ? 'red' : 'yellow',
+                'area' => $area,
+                'recipient_count' => count($subs),
+            ],
+            30
+        );
+
         // Notify admins/masteradmin that SMS was sent for this device/area
         if (!empty($adminMobiles)) {
             $adminMsg = "[Admin Notice] SMS alerts sent for {$device} ({$area}), AQI {$value}.";
@@ -269,6 +299,21 @@ foreach ($alerts as $alert) {
             logActivity($pdo, 'admin', 0, 'SMS Alert Sent', "Device {$device} ({$area}) AQI {$value}", 'SMS');
         } catch (Throwable $e) { /* ignore log errors */ }
     } else {
+        eco_log_incident(
+            $pdo,
+            (int)($alert['device_id'] ?? 0),
+            'sms_failed',
+            $isCritical ? 'critical' : 'warning',
+            "SMS alert failed for {$device}",
+            [
+                'alert_id' => (int)$alert['id'],
+                'aqi' => is_numeric($value) ? (float)$value : $value,
+                'severity' => $isCritical ? 'red' : 'yellow',
+                'area' => $area,
+                'recipient_count' => count($subs),
+            ],
+            30
+        );
         $updateFail->execute([
             ':err' => 'One or more sends failed',
             ':id'  => (int) $alert['id'],

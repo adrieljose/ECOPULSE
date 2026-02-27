@@ -11,8 +11,7 @@ const App = {
         charts: [], // store chart instances to destroy them
         controller: null, // AbortController for fetch
         selectedDeviceId: null, // Multi-device support
-        compareChart: null,
-        aqiGaugeChart: null
+        compareChart: null
     },
 
     init() {
@@ -182,16 +181,6 @@ const App = {
         }
     },
 
-    // --- AQI Color Helper ---
-    getAqiColor(aqi) {
-        if (aqi <= 50) return '#22c55e';   // Good - green
-        if (aqi <= 100) return '#eab308';  // Moderate - yellow
-        if (aqi <= 150) return '#f97316';  // USG - orange
-        if (aqi <= 200) return '#ef4444';  // Unhealthy - red
-        if (aqi <= 300) return '#8b5cf6';  // Very Unhealthy - purple
-        return '#7f1d1d';                   // Hazardous - maroon
-    },
-
     // --- Sub-initializers ---
 
     initClock() {
@@ -335,11 +324,11 @@ const App = {
 
                         // Instant Feedback: Clear UI to show "switching" state
                         const mainVal = document.getElementById('mainAqiValue');
-                        // const mainLoc = document.getElementById('mainLocationLabel'); // Removed
+                        const mainLoc = document.getElementById('mainLocationLabel');
                         const status = document.getElementById('mainAqiStatus');
 
                         if (mainVal) mainVal.textContent = '--';
-                        // if (mainLoc) mainLoc.textContent = 'Loading...'; 
+                        if (mainLoc) mainLoc.textContent = 'Loading...';
                         if (status) status.textContent = '...';
 
                         // Optional: Reset charts if needed, or let update handle it
@@ -386,54 +375,11 @@ const App = {
                 };
 
                 // --- Main AQI Card ---
-                // document.getElementById('mainLocationLabel').textContent = data.selectedDeviceName || 'Unknown Location';
+                document.getElementById('mainLocationLabel').textContent = data.selectedDeviceName || 'Unknown Location';
                 document.getElementById('mainAqiValue').textContent = data.overallAQI ?? '--';
                 document.getElementById('mainAqiStatus').textContent = data.aqiCategory ?? 'No Data';
                 document.getElementById('aqiPlainSummary').textContent = data.analytics?.summary || '';
                 document.getElementById('lastUpdatedText').textContent = new Date().toLocaleTimeString(); // Client time of fetch
-
-                // --- AQI Gauge ---
-                const aqiVal = parseInt(data.overallAQI) || 0;
-                const gaugeEl = document.getElementById('aqiGaugeChart');
-                if (gaugeEl && typeof ApexCharts !== 'undefined') {
-                    const pct = Math.min((aqiVal / 500) * 100, 100);
-                    const color = this.getAqiColor(aqiVal);
-                    const category = data.aqiCategory || 'AQI';
-                    const opts = {
-                        series: [pct],
-                        chart: { type: 'radialBar', height: 220, sparkline: { enabled: true }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
-                        plotOptions: {
-                            radialBar: {
-                                startAngle: -135, endAngle: 135,
-                                hollow: { size: '62%' },
-                                track: { background: 'rgba(255,255,255,0.15)', strokeWidth: '100%' },
-                                dataLabels: {
-                                    name: { show: true, fontSize: '14px', color: 'rgba(255,255,255,0.7)', offsetY: 24, fontFamily: 'Poppins, sans-serif' },
-                                    value: {
-                                        show: true, fontSize: '42px', fontWeight: 800, color: '#fff', offsetY: -12, fontFamily: 'Poppins, sans-serif',
-                                        formatter: function () { return aqiVal; }
-                                    }
-                                }
-                            }
-                        },
-                        fill: { colors: [color], type: 'solid' },
-                        labels: [category],
-                        stroke: { lineCap: 'round' }
-                    };
-
-                    if (!this.state.aqiGaugeChart) {
-                        this.state.aqiGaugeChart = new ApexCharts(gaugeEl, opts);
-                        this.state.aqiGaugeChart.render();
-                        this.state.charts.push(this.state.aqiGaugeChart);
-                    } else {
-                        this.state.aqiGaugeChart.updateOptions({
-                            series: [pct],
-                            fill: { colors: [color] },
-                            labels: [category],
-                            plotOptions: { radialBar: { dataLabels: { value: { formatter: function () { return aqiVal; } } } } }
-                        });
-                    }
-                }
 
                 // Recommendation Logic (Simple + Targeted)
                 let advice = "Air quality is good. Enjoy outdoor activities.";
@@ -592,6 +538,38 @@ const App = {
                 if (domInline) domInline.textContent = `Dominant pollutant: ${domVal}`;
                 setText('sensorsOnline', data.sensorsOnline);
                 setText('sensorsTotal', data.sensorsTotal);
+
+                // --- Forecast Snapshot ---
+                const forecast = data.forecast || null;
+                const forecastHeadlineEl = document.getElementById('forecastHeadline');
+                const forecastMetaEl = document.getElementById('forecastMeta');
+                const forecastDriversEl = document.getElementById('forecastDrivers');
+                const forecastConfidenceEl = document.getElementById('forecastConfidence');
+                if (forecastHeadlineEl && forecastMetaEl && forecastDriversEl && forecastConfidenceEl) {
+                    if (forecast && forecast.forecast_aqi !== null && forecast.forecast_aqi !== undefined) {
+                        const direction = (forecast.direction || 'steady').toLowerCase();
+                        const arrow = direction === 'rising' ? '↑' : (direction === 'falling' ? '↓' : '→');
+                        const deltaNum = Number(forecast.delta || 0);
+                        const deltaText = `${deltaNum > 0 ? '+' : ''}${deltaNum}`;
+                        const confidencePct = Number(forecast.confidence_percent || 0);
+                        const confLabel = (forecast.confidence || 'low').toString().toUpperCase();
+                        const horizon = Number(forecast.horizon_minutes || 30);
+                        const category = forecast.category || 'No Data';
+                        const drivers = Array.isArray(forecast.top_drivers) && forecast.top_drivers.length
+                            ? forecast.top_drivers.join(', ')
+                            : 'No dominant driver yet';
+
+                        forecastHeadlineEl.textContent = `${forecast.forecast_aqi} AQI (${category})`;
+                        forecastMetaEl.textContent = `${arrow} ${direction} in next ${horizon} min (${deltaText})`;
+                        forecastDriversEl.textContent = `Top drivers: ${drivers}`;
+                        forecastConfidenceEl.textContent = `${confLabel} ${confidencePct}%`;
+                    } else {
+                        forecastHeadlineEl.textContent = '--';
+                        forecastMetaEl.textContent = 'Waiting for forecast model...';
+                        forecastDriversEl.textContent = 'Top drivers: --';
+                        forecastConfidenceEl.textContent = '--';
+                    }
+                }
 
                 // --- Analytics List ---
                 const analyticsList = document.getElementById('analyticsList');
