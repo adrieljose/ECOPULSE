@@ -222,13 +222,12 @@ try {
                                     <h5 class="mb-0 fw-bold"><i class="fa-solid fa-wind me-2"></i>Current Air Quality</h5>
                                     <span class="badge bg-white text-dark bg-opacity-75">Live</span>
                                 </div>
-
+                                <h6 class="mb-4 text-white hover-underline op-8" id="mainLocationLabel">Global Average</h6>
                             </div>
                             
                             <div class="text-center my-3 aqi-value-container">
-                                <div id="aqiGaugeChart" style="min-height:200px;"></div>
-                                <div class="display-4 fw-bold mt-n3" id="mainAqiValue" style="display:none;">--</div>
-                                <div class="fs-4 fw-medium mt-1" id="mainAqiStatus"><span class="skeleton-line is-loading" style="width:120px;height:1rem;display:inline-block"></span></div>
+                                <div class="display-1 fw-bold" id="mainAqiValue">--</div>
+                                <div class="fs-4 fw-medium mt-1" id="mainAqiStatus">Waiting for data...</div>
                                 <p class="aqi-plain-summary text-white text-opacity-90 small mb-0" id="aqiPlainSummary">Waiting for live guidance...</p>
                                 <p class="text-white text-opacity-90 small mt-2 mb-0" id="mainDominantInline">Dominant pollutant: --</p>
                             </div>
@@ -259,16 +258,17 @@ try {
                                 </div>
                                 <div class="mt-3 p-3 rounded-3 bg-white text-dark shadow-sm border border-light">
                                     <div class="d-flex align-items-center gap-2 mb-2">
-                                        <span class="badge bg-success-subtle text-success border border-success border-opacity-25 px-3 py-2 fs-6">
+                                        <span class="badge bg-success-subtle text-success border border-success border-opacity-25 px-2 py-1">
                                             <i class="fa-solid fa-leaf me-1"></i>Stay in Good
                                         </span>
+                                        <span class="text-muted small">Keep your air in the green zone</span>
                                     </div>
-                                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">PM2.5 ≤ 12 µg/m³</span>
-                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">PM10 ≤ 50 µg/m³</span>
-                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">CO ≤ 5 ppm</span>
-                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">O₃ ≤ 100 ppb</span>
-                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">CO₂ ≤ 1000 ppm</span>
+                                    <div class="small d-flex flex-wrap gap-2 align-items-center">
+                                        <span class="badge rounded-pill bg-light text-dark border">PM2.5 ≤ 12 µg/m³</span>
+                                        <span class="badge rounded-pill bg-light text-dark border">PM10 ≤ 50 µg/m³</span>
+                                        <span class="badge rounded-pill bg-light text-dark border">CO ≤ 5 ppm</span>
+                                        <span class="badge rounded-pill bg-light text-dark border">O₃ ≤ 100 ppb</span>
+                                        <span class="badge rounded-pill bg-light text-dark border">CO₂ ≤ 1000 ppm</span>
                                     </div>
                                 </div>
                             </div>
@@ -285,29 +285,47 @@ try {
                     <div class="row g-3 h-100">
                         <div class="col-md-6 reveal" style="--reveal-delay: 200ms;">
                             <div class="card stat-card-mini h-100 border-0 shadow-sm dashboard-mini-card">
-                                <div class="card-body d-flex flex-column pt-3 pb-2 px-3">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <div class="stat-icon me-2 bg-light-primary"><i class="fa-solid fa-chart-column fa-xl"></i></div>
-                                        <h6 class="mb-0 text-muted fw-semibold text-uppercase" style="font-size:0.72rem;letter-spacing:0.05em;">Dominant Pollutant</h6>
+                                <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="stat-icon me-3 bg-light-primary"><i class="fa-solid fa-chart-column fa-lg"></i></div>
+                                        <h6 class="mb-0 text-muted fw-semibold">Dominant Pollutant</h6>
                                     </div>
-                                    <div class="mt-1">
-                                         <p class="mb-0 fw-bold text-dark" id="dominantPollutant" style="font-size:1.75rem;line-height:1.2;"><span class="skeleton-line is-loading" style="width:100px;height:1.5rem;display:inline-block"></span></p>
+                                    <div class="ps-2">
+                                         <p class="mb-0 fw-bold fs-3 text-dark" id="dominantPollutant">--</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6 reveal" style="--reveal-delay: 300ms;">
                             <div class="card stat-card-mini h-100 border-0 shadow-sm dashboard-mini-card">
-                                <div class="card-body d-flex flex-column pt-3 pb-2 px-3">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <div class="stat-icon me-2 bg-light-info"><i class="fa-solid fa-tower-broadcast fa-xl"></i></div>
-                                        <h6 class="mb-0 text-muted fw-semibold text-uppercase" style="font-size:0.72rem;letter-spacing:0.05em;">Active Sensors</h6>
+                                <div class="card-body d-flex flex-column justify-content-center">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="stat-icon me-3 bg-light-info"><i class="fa-solid fa-tower-broadcast fa-lg"></i></div>
+                                        <h6 class="mb-0 text-muted fw-semibold">Active Sensors</h6>
                                     </div>
-                                    <div class="mt-1">
-                                        <p class="mb-0 fw-bold text-dark" style="font-size:1.75rem;line-height:1.2;">
-                                            <span id="sensorsOnline"><span class="skeleton-line is-loading" style="width:30px;height:1.2rem;display:inline-block"></span></span> <span class="text-muted fw-normal" style="font-size:0.95rem;">/ <span id="sensorsTotal"><span class="skeleton-line is-loading" style="width:30px;height:1rem;display:inline-block"></span></span> Online</span>
+                                    <div class="ps-2">
+                                        <p class="mb-0 fw-bold fs-3 text-dark">
+                                            <span id="sensorsOnline">--</span> <span class="fs-6 text-muted fw-normal">/ <span id="sensorsTotal">--</span> Online</span>
                                         </p>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 reveal" style="--reveal-delay: 350ms;">
+                            <div class="card stat-card-mini border-0 shadow-sm dashboard-mini-card">
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                                        <div>
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="stat-icon me-2 bg-light-success"><i class="fa-solid fa-wave-square fa-lg"></i></div>
+                                                <h6 class="mb-0 text-muted fw-semibold">30-min AQI Forecast</h6>
+                                            </div>
+                                            <p class="mb-0 fw-bold fs-4 text-dark" id="forecastHeadline">--</p>
+                                            <p class="mb-0 small text-muted" id="forecastMeta">Waiting for forecast model...</p>
+                                        </div>
+                                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold" id="forecastConfidence">--</span>
+                                    </div>
+                                    <div class="small text-muted mt-2" id="forecastDrivers">Top drivers: --</div>
                                 </div>
                             </div>
                         </div>
@@ -347,7 +365,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="PMS5003" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainPm1"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainPm1">--</div>
                                         <div class="text-muted small">ug/m3</div>
                                     </div>
                                 </div>
@@ -361,7 +379,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="PMS5003" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainPm25"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainPm25">--</div>
                                         <div class="text-muted small">ug/m3</div>
                                     </div>
                                 </div>
@@ -375,7 +393,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="PMS5003" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainPm10"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainPm10">--</div>
                                         <div class="text-muted small">ug/m3</div>
                                     </div>
                                 </div>
@@ -389,7 +407,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="MQ-131" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainO3"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainO3">--</div>
                                         <div class="text-muted small">ug/m3</div>
                                     </div>
                                 </div>
@@ -403,7 +421,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="MQ-7" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainCo"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainCo">--</div>
                                         <div class="text-muted small">ppm</div>
                                     </div>
                                 </div>
@@ -417,7 +435,7 @@ try {
                                             <a class="sensor-link sensor-cert-link" href="#" data-sensor="MH-Z19B" target="_blank" rel="noopener noreferrer">Calibration Docs</a>
                                         </div>
                                         <div class="sensor-calibration-note">Factory calibration/accuracy per datasheet.</div>
-                                        <div class="fw-bold fs-4" id="mainCo2"><span class="skeleton-line is-loading" style="width:60px;height:1.2rem;display:inline-block"></span></div>
+                                        <div class="fw-bold fs-4" id="mainCo2">--</div>
                                         <div class="text-muted small">ppm</div>
                                     </div>
                                 </div>
@@ -433,11 +451,11 @@ try {
                                             <div class="sensor-calibration-note text-start">Factory calibration/accuracy per datasheet.</div>
                                             <div class="d-flex align-items-baseline gap-3">
                                                 <div>
-                                                    <span class="fw-bold fs-2" id="mainTemp"><span class="skeleton-line is-loading" style="width:50px;height:1.5rem;display:inline-block"></span></span>
+                                                    <span class="fw-bold fs-2" id="mainTemp">--</span>
                                                     <span class="text-muted small">&deg;C</span>
                                                 </div>
                                                 <div class="border-start ps-3">
-                                                    <span class="fw-bold fs-4" id="mainHumidity"><span class="skeleton-line is-loading" style="width:40px;height:1.2rem;display:inline-block"></span></span>
+                                                    <span class="fw-bold fs-4" id="mainHumidity">--</span>
                                                     <span class="text-muted small">% Hum</span>
                                                 </div>
                                             </div>
