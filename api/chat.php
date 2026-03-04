@@ -1,10 +1,9 @@
 <?php
 header('Content-Type: application/json');
 
-// --- CONFIGURATION ---
-// TODO: User MUST replace this with their actual Gemini API Key
-define('GEMINI_API_KEY', 'AIzaSyAPBjWc4Yr8XeZhjkO0TPJ62cB09zA_cpQ');
-define('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=' . GEMINI_API_KEY);
+$geminiApiKey = (string) (getenv('GEMINI_API_KEY') ?: '');
+$geminiModel = (string) (getenv('GEMINI_MODEL') ?: 'gemini-1.5-flash');
+$geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($geminiModel) . ':generateContent?key=' . rawurlencode($geminiApiKey);
 
 // Retrieve JSON input
 $input = json_decode(file_get_contents('php://input'), true);
@@ -16,8 +15,8 @@ if (empty($userMessage)) {
     exit;
 }
 
-if (GEMINI_API_KEY === 'INSERT_YOUR_GEMINI_API_KEY_HERE') {
-    echo json_encode(['reply' => "SYSTEM ERROR: API Key not configured. Please edit api/chat.php and add your Gemini Key."]);
+if ($geminiApiKey === '') {
+    echo json_encode(['reply' => "AI chat is not configured yet. Please contact the administrator."]);
     exit;
 }
 
@@ -88,7 +87,7 @@ $data = [
 ];
 
 // 3. Send Request to Google Gemini
-$ch = curl_init(GEMINI_API_URL);
+$ch = curl_init($geminiApiUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -100,9 +99,8 @@ curl_close($ch);
 
 // 4. Parse Response
 if ($httpCode !== 200) {
-    // Return the actual error from Google for debugging
-    $errorDetails = $response ? $response : "No response body.";
-    echo json_encode(['reply' => "API Error ($httpCode): " . strip_tags($errorDetails)]); 
+    error_log('[EcoPulse] Gemini API error: HTTP ' . $httpCode . ' body=' . substr((string) $response, 0, 400));
+    echo json_encode(['reply' => "I couldn't reach the AI service right now. Please try again shortly."]);
     exit;
 }
 

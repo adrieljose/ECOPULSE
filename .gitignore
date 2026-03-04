@@ -16,3 +16,7 @@ brain/
 *.webp
 *.png
 *.mp4
+/air_data.log
+/data/iprog_token.txt
+/data/reset_emails.log
+/data/*.log

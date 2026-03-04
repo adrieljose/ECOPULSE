@@ -3,12 +3,17 @@ require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../lib/forecast_engine.php';
 
 // Log file for the cron job
-$logFile = __DIR__ . '/predictive_alerts.log';
+$runtimeDir = sys_get_temp_dir() . '/ecopulse';
+if (!is_dir($runtimeDir)) {
+    @mkdir($runtimeDir, 0775, true);
+}
+$logFile = $runtimeDir . '/predictive_alerts.log';
 
 function writeLog($message) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
-    file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    @file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    error_log("[EcoPulse predictive_alerts] $message");
     echo "[$timestamp] $message\n";
 }
 
@@ -52,7 +57,7 @@ try {
         if ($predictedAqi > 150 && $currentAqi <= 150 && $direction === 'rising') {
             
             // Check if we already sent an alert recently
-            $throttleFlag = __DIR__ . "/../tmp/alert_throttle_{$did}.lock";
+            $throttleFlag = $runtimeDir . "/alert_throttle_{$did}.lock";
             
             if (file_exists($throttleFlag)) {
                 $lastSent = filemtime($throttleFlag);
@@ -86,21 +91,31 @@ try {
             $smsMessage = "ECOPULSE ALERT: AQI in {$device['area']} is predicted to reach UNHEALTHY within 60 mins. Limit outdoor activities. Reply STOP to unsubscribe.";
             writeLog(">>> DISPATCHING SMS WARNING for {$device['name']} to " . count($mobiles) . " subscribers.");
 
-            // 2. Setup Provider Credentials (Copied from sms.php logic)
-            $INFOBIP_BASE_URL = rtrim(getenv('INFOBIP_BASE_URL') ?: 'https://rp1lwl.api.infobip.com', '/');
-            $INFOBIP_API_KEY = getenv('INFOBIP_API_KEY') ?: '7864af3ef89ba9dc387e86ecb068acd3-dd70925e-1d40-473f-8e0c-0bf56b7d040b';
-            $INFOBIP_FROM = getenv('INFOBIP_FROM') ?: '447491163443';
-            
+            // 2. Setup Provider Credentials (env-driven)
             $IPROG_BASE_URL = rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/');
-            $IPROG_API_TOKEN = getenv('IPROG_API_TOKEN') ?: '19d7d48ba32a2b9263c25e70d2cd932b0f9ce2e0';
+            $IPROG_API_TOKEN = (string) (getenv('IPROG_API_TOKEN') ?: '');
+            if ($IPROG_API_TOKEN === '') {
+                $tokenFile = __DIR__ . '/../data/iprog_token.txt';
+                if (is_readable($tokenFile)) {
+                    $IPROG_API_TOKEN = trim((string) file_get_contents($tokenFile));
+                }
+            }
             $IPROG_SMS_PROVIDER = getenv('IPROG_SMS_PROVIDER') ?: null;
+            if ($IPROG_API_TOKEN === '') {
+                writeLog("Skipping SMS for {$device['name']} - IPROG_API_TOKEN missing.");
+                continue;
+            }
 
             // Simple cURL helper for IPROG
-            function inline_send_iprog($to, $msg, $url, $tok, $prov) {
+            $inlineSendIprog = static function ($to, $msg, $url, $tok, $prov): string {
                 $to = preg_replace('/[^0-9]/', '', $to);
-                if (strlen($to) === 11 && $to[0] === '0') $to = '63' . substr($to, 1);
+                if (strlen($to) === 11 && $to[0] === '0') {
+                    $to = '63' . substr($to, 1);
+                }
                 $payload = ['api_token' => $tok, 'phone_number' => $to, 'message' => $msg];
-                if ($prov !== null) $payload['sms_provider'] = $prov;
+                if ($prov !== null) {
+                    $payload['sms_provider'] = $prov;
+                }
                 
                 $ch = curl_init($url);
                 curl_setopt_array($ch, [
@@ -112,13 +127,13 @@ try {
                 $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
                 return $http >= 200 && $http < 300 ? 'Sent' : 'Failed';
-            }
+            };
 
             // 3. Dispatch to all subscribers
             $successCount = 0;
             foreach ($mobiles as $mobile) {
                 // Defaulting to IPROG as per sms.php logic preference for this server
-                $status = inline_send_iprog($mobile, $smsMessage, $IPROG_BASE_URL, $IPROG_API_TOKEN, $IPROG_SMS_PROVIDER);
+                $status = $inlineSendIprog($mobile, $smsMessage, $IPROG_BASE_URL, $IPROG_API_TOKEN, $IPROG_SMS_PROVIDER);
                 if ($status === 'Sent') $successCount++;
                 
                 // 4. Log to sms_logs table
@@ -128,7 +143,7 @@ try {
                 } catch (Exception $e) { /* ignore log error */ }
             }
 
-            file_put_contents($throttleFlag, time());
+            @file_put_contents($throttleFlag, (string)time());
             $smsSentCount++;
             writeLog("Successfully sent to $successCount/" . count($mobiles) . " subscribers.");
 

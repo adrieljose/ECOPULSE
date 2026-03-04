@@ -47,20 +47,19 @@ $USE_TWILIO = ($TWILIO_SID && $TWILIO_TOKEN && $TWILIO_FROM);
 
 // Infobip (preferred)
 $INFOBIP_BASE_URL = rtrim(getenv('INFOBIP_BASE_URL') ?: 'https://rp1lwl.api.infobip.com', '/');
-$INFOBIP_API_KEY = getenv('INFOBIP_API_KEY') ?: '7864af3ef89ba9dc387e86ecb068acd3-dd70925e-1d40-473f-8e0c-0bf56b7d040b';
+$INFOBIP_API_KEY = getenv('INFOBIP_API_KEY') ?: '';
 // Use approved Infobip sender (shortcode/number or alpha if allowed)
 $INFOBIP_FROM = getenv('INFOBIP_FROM') ?: '447491163443';
 $USE_INFOBIP = ($INFOBIP_BASE_URL && $INFOBIP_API_KEY && $INFOBIP_FROM);
 
 // IPROG SMS (new default). Form-encoded API: requires api_token, phone_number, message; optional sms_provider (0|1|2).
 $IPROG_BASE_URL = rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/');
-$IPROG_API_TOKEN = '';
-$tokenFile = __DIR__ . '/data/iprog_token.txt';
-if (file_exists($tokenFile)) {
-    $IPROG_API_TOKEN = trim((string) file_get_contents($tokenFile));
-}
+$IPROG_API_TOKEN = (string) (getenv('IPROG_API_TOKEN') ?: '');
 if ($IPROG_API_TOKEN === '') {
-    $IPROG_API_TOKEN = getenv('IPROG_API_TOKEN') ?: '19d7d48ba32a2b9263c25e70d2cd932b0f9ce2e0';
+    $tokenFile = __DIR__ . '/data/iprog_token.txt';
+    if (is_readable($tokenFile)) {
+        $IPROG_API_TOKEN = trim((string) file_get_contents($tokenFile));
+    }
 }
 $IPROG_SMS_PROVIDER = getenv('IPROG_SMS_PROVIDER') ?: null; // 0,1,2 per IPROG docs
 $USE_IPROG = ($IPROG_BASE_URL && $IPROG_API_TOKEN);
@@ -72,7 +71,94 @@ try {
     // Will handle gracefully later
 }
 
-$templateFile = __DIR__ . '/data/sms_templates.json';
+$defaultTemplateFile = __DIR__ . '/data/sms_templates.json';
+$templateFile = runtime_template_path($defaultTemplateFile);
+
+function runtime_template_path(string $defaultPath): string
+{
+    if (is_writable(dirname($defaultPath))) {
+        return $defaultPath;
+    }
+    $runtimeDir = sys_get_temp_dir() . '/ecopulse';
+    if (!is_dir($runtimeDir)) {
+        @mkdir($runtimeDir, 0775, true);
+    }
+    return $runtimeDir . '/sms_templates.json';
+}
+
+function load_sms_templates_from_file(string $path): array
+{
+    if (!is_readable($path)) {
+        return [];
+    }
+    $decoded = json_decode((string) file_get_contents($path), true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $templates = [];
+    foreach ($decoded as $template) {
+        if (!isset($template['id'])) {
+            continue;
+        }
+        $id = (string) $template['id'];
+        $templates[$id] = $template;
+    }
+    return $templates;
+}
+
+function ensure_sms_templates_table(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS sms_templates (
+            template_id VARCHAR(64) PRIMARY KEY,
+            label VARCHAR(191) NOT NULL,
+            description TEXT NULL,
+            content TEXT NOT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ");
+}
+
+function load_sms_templates_from_db(PDO $pdo): array
+{
+    $stmt = $pdo->query("SELECT template_id, label, description, content, updated_at FROM sms_templates");
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $out = [];
+    foreach ($rows as $row) {
+        $id = $row['template_id'] ?? '';
+        if ($id === '') continue;
+        $out[$id] = [
+            'id' => $id,
+            'label' => $row['label'] ?? '',
+            'description' => $row['description'] ?? '',
+            'content' => $row['content'] ?? '',
+            'last_updated' => $row['updated_at'] ?? null,
+        ];
+    }
+    return $out;
+}
+
+function save_sms_templates_to_db(PDO $pdo, array $templates): void
+{
+    $sql = "
+        INSERT INTO sms_templates (template_id, label, description, content, updated_at)
+        VALUES (:id, :label, :description, :content, NOW())
+        ON DUPLICATE KEY UPDATE
+            label = VALUES(label),
+            description = VALUES(description),
+            content = VALUES(content),
+            updated_at = NOW()
+    ";
+    $stmt = $pdo->prepare($sql);
+    foreach ($templates as $template) {
+        $stmt->execute([
+            ':id' => $template['id'],
+            ':label' => $template['label'] ?? $template['id'],
+            ':description' => $template['description'] ?? '',
+            ':content' => $template['content'] ?? '',
+        ]);
+    }
+}
 
 $defaultTemplates = [
     [
@@ -96,16 +182,24 @@ foreach ($defaultTemplates as $template) {
     $templatesById[$template['id']] = $template;
 }
 
-if (file_exists($templateFile)) {
-    $loaded = json_decode(file_get_contents($templateFile), true);
-    if (is_array($loaded)) {
-        foreach ($loaded as $template) {
-            if (!isset($template['id'])) {
-                continue;
-            }
-            $id = $template['id'];
+foreach (load_sms_templates_from_file($defaultTemplateFile) as $id => $template) {
+    $templatesById[$id] = array_merge($templatesById[$id] ?? [], $template);
+}
+if ($templateFile !== $defaultTemplateFile) {
+    foreach (load_sms_templates_from_file($templateFile) as $id => $template) {
+        $templatesById[$id] = array_merge($templatesById[$id] ?? [], $template);
+    }
+}
+
+if ($pdo) {
+    try {
+        ensure_sms_templates_table($pdo);
+        $dbTemplates = load_sms_templates_from_db($pdo);
+        foreach ($dbTemplates as $id => $template) {
             $templatesById[$id] = array_merge($templatesById[$id] ?? [], $template);
         }
+    } catch (Throwable $e) {
+        error_log('[EcoPulse] Failed to load SMS templates from DB: ' . $e->getMessage());
     }
 }
 
@@ -523,18 +617,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_templates'])) {
     unset($template);
 
     if (!$errors) {
-        $encoded = json_encode($templates, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        if ($encoded === false) {
-            $errors[] = 'Unable to encode the templates to JSON: ' . json_last_error_msg();
-        } else {
-            $bytesWritten = @file_put_contents($templateFile, $encoded, LOCK_EX);
-            if ($bytesWritten === false) {
-                $errors[] = 'Failed to save the SMS templates. Please check file permissions.';
+        $saved = false;
+        if ($pdo instanceof PDO) {
+            try {
+                save_sms_templates_to_db($pdo, $templates);
+                $saved = true;
+            } catch (Throwable $e) {
+                error_log('[EcoPulse] Failed to save SMS templates to DB: ' . $e->getMessage());
+            }
+        }
+        if (!$saved) {
+            $encoded = json_encode($templates, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            if ($encoded === false) {
+                $errors[] = 'Unable to encode the templates to JSON: ' . json_last_error_msg();
             } else {
-                $successMessage = 'SMS message templates updated successfully.';
-                
-                // Log Activity
-                require_once __DIR__ . '/lib/activity_logger.php';
+                $bytesWritten = @file_put_contents($templateFile, $encoded, LOCK_EX);
+                if ($bytesWritten === false) {
+                    $errors[] = 'Failed to save the SMS templates. Please check file permissions or database connectivity.';
+                } else {
+                    $saved = true;
+                }
+            }
+        }
+        if ($saved) {
+            $successMessage = 'SMS message templates updated successfully.';
+
+            // Log Activity
+            require_once __DIR__ . '/lib/activity_logger.php';
+            if ($pdo instanceof PDO) {
                 logActivity($pdo, ($isAdmin ? 'admin' : 'user'), $_SESSION['admin'] ?? $_SESSION['user'], 'Update Templates', 'Updated SMS templates', 'SMS');
             }
         }

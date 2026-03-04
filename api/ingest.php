@@ -2,7 +2,13 @@
 require_once __DIR__ . '/../db.php';
 header('Content-Type: application/json');
 
-$TOKEN = 'change_this_token';
+$TOKEN = (string) (getenv('INGEST_API_TOKEN') ?: '');
+
+if ($TOKEN === '') {
+    http_response_code(503);
+    echo json_encode(['status' => 'error', 'message' => 'Ingest token is not configured']);
+    exit;
+}
 
 if (($_SERVER['HTTP_X_API_KEY'] ?? '') !== $TOKEN) {
     http_response_code(401);

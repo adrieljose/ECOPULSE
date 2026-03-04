@@ -25,11 +25,11 @@ echo "IPROG Base URL: " . $config['iprog_base_url'] . "\n";
 echo "IPROG Token (masked): " . substr($token, 0, 6) . "..." . substr($token, -4) . "\n";
 echo "Token Length: " . strlen($token) . "\n";
 
-// Compare with expected default to see if fallback happened
-if ($token === '19d7d48ba32a2b9263c25e70d2cd932b0f9ce2e0') {
-    echo "WARNING: Using default fallback token! File read might have failed or been overridden.\n";
+// Check whether token was loaded at all
+if ($token === '') {
+    echo "WARNING: No IPROG token loaded. Configure IPROG_API_TOKEN or data/iprog_token.txt.\n";
 } else {
-    echo "Using custom token (Good).\n";
+    echo "Using configured token (Good).\n";
 }
 
 // 3. Test Send (Optional - prompting before making the call?)

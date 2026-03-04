@@ -1,22 +1,13 @@
 <?php
 
 function get_sms_config() {
-    $iprog_token = '';
+    $iprog_token = (string) (getenv('IPROG_API_TOKEN') ?: '');
 
-    // 1. Try file first (Priority)
-    $token_file = __DIR__ . '/../data/iprog_token.txt';
-    if (file_exists($token_file)) {
-        $iprog_token = trim(file_get_contents($token_file));
-    }
-
-    // 2. If no file token, try Env
-    if (!$iprog_token) {
-        $iprog_token = getenv('IPROG_API_TOKEN');
-    }
-
-    // 3. Fallback
-    if (!$iprog_token) {
-        $iprog_token = '19d7d48ba32a2b9263c25e70d2cd932b0f9ce2e0';
+    if ($iprog_token === '') {
+        $token_file = __DIR__ . '/../data/iprog_token.txt';
+        if (is_readable($token_file)) {
+            $iprog_token = trim((string) file_get_contents($token_file));
+        }
     }
 
     return [
@@ -25,7 +16,7 @@ function get_sms_config() {
         'twilio_from' => getenv('TWILIO_FROM') ?: '+64',
         
         'infobip_base_url' => rtrim(getenv('INFOBIP_BASE_URL') ?: 'https://rp1lwl.api.infobip.com', '/'),
-        'infobip_api_key' => getenv('INFOBIP_API_KEY') ?: '7864af3ef89ba9dc387e86ecb068acd3-dd70925e-1d40-473f-8e0c-0bf56b7d040b',
+        'infobip_api_key' => getenv('INFOBIP_API_KEY') ?: '',
         'infobip_from' => getenv('INFOBIP_FROM') ?: '447491163443',
 
         'iprog_base_url' => rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/'),

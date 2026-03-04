@@ -1,0 +1,9 @@
+node_modules
+.git
+.idea
+.vscode
+air_data.log
+output_test_sms.txt
+data/iprog_token.txt
+data/reset_emails.log
+data/*.log

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/session_bootstrap.php';
+require_once __DIR__ . '/db.php';
 
 if (!isset($_SESSION['admin'])) {
     header('Location: login.php?from=reports');
@@ -39,14 +40,11 @@ if ($isAdmin) {
     $currentUserLabel = $currentUserLabel !== '' ? $currentUserLabel : 'Guest';
 }
 
-// --- DB connection ---
-require_once __DIR__ . '/db.php';
-
-if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
-    $mysqli = new mysqli('localhost', 'root', '', 'ecopulse');
-    if ($mysqli->connect_errno) {
-        die('Database connection failed: ' . $mysqli->connect_error);
-    }
+try {
+    $mysqli = db_mysqli();
+} catch (Throwable $e) {
+    error_log('[EcoPulse] reports DB error: ' . $e->getMessage());
+    die('Database connection failed.');
 }
 
 function h($v) {

@@ -16,13 +16,12 @@ require_once __DIR__ . '/../lib/incident_logger.php';
 
 // Provider configuration (env-driven; IPROG as default)
 $IPROG_BASE_URL   = rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/');
-$IPROG_API_TOKEN  = '';
-$tokenFile = __DIR__ . '/../data/iprog_token.txt';
-if (file_exists($tokenFile)) {
-    $IPROG_API_TOKEN = trim((string) file_get_contents($tokenFile));
-}
+$IPROG_API_TOKEN  = (string) (getenv('IPROG_API_TOKEN') ?: '');
 if ($IPROG_API_TOKEN === '') {
-    $IPROG_API_TOKEN = getenv('IPROG_API_TOKEN') ?: '';
+    $tokenFile = __DIR__ . '/../data/iprog_token.txt';
+    if (is_readable($tokenFile)) {
+        $IPROG_API_TOKEN = trim((string) file_get_contents($tokenFile));
+    }
 }
 $IPROG_SMS_PROVIDER = getenv('IPROG_SMS_PROVIDER') ?: null;
 
@@ -178,14 +177,41 @@ try {
         exit;
     }
     
-    // Load Templates
-    $templateFile = __DIR__ . '/../data/sms_templates.json';
+    // Load Templates (DB first, file fallback)
     $templates = [];
-    if (file_exists($templateFile)) {
-        $rawTpl = json_decode(file_get_contents($templateFile), true);
-        if (is_array($rawTpl)) {
-            foreach ($rawTpl as $t) {
-                $templates[$t['id']] = $t['content'];
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS sms_templates (
+                template_id VARCHAR(64) PRIMARY KEY,
+                label VARCHAR(191) NOT NULL,
+                description TEXT NULL,
+                content TEXT NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ");
+        $tplStmt = $pdo->query("SELECT template_id, content FROM sms_templates");
+        $tplRows = $tplStmt ? $tplStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($tplRows as $row) {
+            $templateId = $row['template_id'] ?? '';
+            if ($templateId === '') {
+                continue;
+            }
+            $templates[$templateId] = (string)($row['content'] ?? '');
+        }
+    } catch (Throwable $e) {
+        error_log('[EcoPulse trigger_sms_check] template DB load failed: ' . $e->getMessage());
+    }
+    if (empty($templates)) {
+        $templateFile = __DIR__ . '/../data/sms_templates.json';
+        if (is_readable($templateFile)) {
+            $rawTpl = json_decode((string) file_get_contents($templateFile), true);
+            if (is_array($rawTpl)) {
+                foreach ($rawTpl as $t) {
+                    if (!isset($t['id'])) {
+                        continue;
+                    }
+                    $templates[(string)$t['id']] = (string)($t['content'] ?? '');
+                }
             }
         }
     }

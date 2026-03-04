@@ -230,14 +230,41 @@ if ($aqi >= 101) {
                 }
                 
                 if (!empty($mobiles)) {
-                    // Load SMS templates
-                    $templateFile = __DIR__ . '/../data/sms_templates.json';
+                    // Load SMS templates (DB first, file fallback)
                     $templates = [];
-                    if (file_exists($templateFile)) {
-                        $rawTpl = json_decode(file_get_contents($templateFile), true);
-                        if (is_array($rawTpl)) {
-                            foreach ($rawTpl as $t) {
-                                $templates[$t['id']] = $t['content'];
+                    try {
+                        $pdo_alert->exec("
+                            CREATE TABLE IF NOT EXISTS sms_templates (
+                                template_id VARCHAR(64) PRIMARY KEY,
+                                label VARCHAR(191) NOT NULL,
+                                description TEXT NULL,
+                                content TEXT NOT NULL,
+                                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                        ");
+                        $tplStmt = $pdo_alert->query("SELECT template_id, content FROM sms_templates");
+                        $tplRows = $tplStmt ? $tplStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+                        foreach ($tplRows as $row) {
+                            $templateId = $row['template_id'] ?? '';
+                            if ($templateId === '') {
+                                continue;
+                            }
+                            $templates[$templateId] = (string)($row['content'] ?? '');
+                        }
+                    } catch (Throwable $tplErr) {
+                        error_log('[EcoPulse ingest_esp] template DB load failed: ' . $tplErr->getMessage());
+                    }
+                    if (empty($templates)) {
+                        $templateFile = __DIR__ . '/../data/sms_templates.json';
+                        if (is_readable($templateFile)) {
+                            $rawTpl = json_decode((string) file_get_contents($templateFile), true);
+                            if (is_array($rawTpl)) {
+                                foreach ($rawTpl as $t) {
+                                    if (!isset($t['id'])) {
+                                        continue;
+                                    }
+                                    $templates[(string)$t['id']] = (string)($t['content'] ?? '');
+                                }
                             }
                         }
                     }
@@ -260,13 +287,15 @@ if ($aqi >= 101) {
                     }
                     
                     // Get IPROG config
-                    $token_file = __DIR__ . '/../data/iprog_token.txt';
-                    $IPROG_API_TOKEN = '';
-                    if (file_exists($token_file)) {
-                        $IPROG_API_TOKEN = trim(file_get_contents($token_file));
+                    $IPROG_API_TOKEN = (string) (getenv('IPROG_API_TOKEN') ?: '');
+                    if ($IPROG_API_TOKEN === '') {
+                        $token_file = __DIR__ . '/../data/iprog_token.txt';
+                        if (is_readable($token_file)) {
+                            $IPROG_API_TOKEN = trim((string) file_get_contents($token_file));
+                        }
                     }
-                    if (!$IPROG_API_TOKEN) {
-                        $IPROG_API_TOKEN = getenv('IPROG_API_TOKEN') ?: '';
+                    if ($IPROG_API_TOKEN === '') {
+                        throw new RuntimeException('IPROG_API_TOKEN is missing.');
                     }
                     $IPROG_BASE_URL = rtrim(getenv('IPROG_BASE_URL') ?: 'https://www.iprogsms.com/api/v1/sms_messages', '/');
                     $IPROG_SMS_PROVIDER = getenv('IPROG_SMS_PROVIDER') ?: null;
@@ -339,15 +368,23 @@ if ($aqi >= 101) {
     } catch (Throwable $e) { /* ignore */ }
 }
 
-// OPTIONAL: append raw JSON to log file if you still want air_data.log
-$logFilename = __DIR__ . '/../air_data.log';
-file_put_contents($logFilename, $raw . PHP_EOL, FILE_APPEND);
+// OPTIONAL: append raw payload to runtime log storage (Vercel-safe).
+$runtimeDir = sys_get_temp_dir() . '/ecopulse';
+if (!is_dir($runtimeDir)) {
+    @mkdir($runtimeDir, 0775, true);
+}
+$logFilename = $runtimeDir . '/air_data.log';
+if (@file_put_contents($logFilename, $raw . PHP_EOL, FILE_APPEND) === false) {
+    error_log('[EcoPulse ingest_esp] Failed to write runtime log payload.');
+}
 
 // Connect to DB
-$mysqli = new mysqli('localhost', 'root', '', 'ecopulse');
-if ($mysqli->connect_errno) {
+try {
+    $mysqli = db_mysqli();
+} catch (Throwable $e) {
+    error_log('[EcoPulse] ingest_esp DB error: ' . $e->getMessage());
     http_response_code(500);
-    echo "DB connection failed: " . $mysqli->connect_error;
+    echo "DB connection failed";
     exit;
 }
 

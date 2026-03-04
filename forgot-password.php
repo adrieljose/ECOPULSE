@@ -30,10 +30,15 @@ function env_val(string $key): ?string
             $txt = trim(file_get_contents($fallback));
             if ($txt !== '') return $txt;
         }
-        // Hard fallback to known working token (replace if needed)
-        return '93edb771aab4d97cc22ca029f3922832cdd831bc';
     }
     return null;
+}
+
+function write_runtime_log(string $line): void
+{
+    $logLine = rtrim($line) . PHP_EOL;
+    @file_put_contents(sys_get_temp_dir() . '/ecopulse_reset.log', $logLine, FILE_APPEND);
+    error_log('[EcoPulse reset] ' . trim($line));
 }
 
 function normalize_msisdn(string $num): string
@@ -116,7 +121,7 @@ function send_reset_sms(string $mobile, string $message): ?string
         is_string($resp) ? substr($resp, 0, 500) : '',
         PHP_EOL
     );
-    @file_put_contents(__DIR__ . '/data/reset_emails.log', $logLine, FILE_APPEND);
+    write_runtime_log($logLine);
     return null;
 }
 
@@ -216,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     // Failure: Fallback to local OTP (not sent via SMS)
                     $successMessage = 'SMS not sent (gateway not configured or error). Use the OTP and link below.';
-                    $smsNote = "Use this OTP and link. Check data/reset_emails.log for details.";
+                    $smsNote = "Use this OTP and link. Check server logs for details.";
                     $logLine = sprintf(
                         "[%s] sms_fail to=%s otp=%s link=%s%s",
                         date('c'),
@@ -225,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $resetLink,
                         PHP_EOL
                     );
-                    @file_put_contents(__DIR__ . '/data/reset_emails.log', $logLine, FILE_APPEND);
+                    write_runtime_log($logLine);
                 }
 
                 $otpHash = hash('sha256', $otp);

@@ -5,14 +5,10 @@ header('Pragma: no-cache');
 require_once __DIR__ . '/lib/forecast_engine.php';
 require_once __DIR__ . '/db.php';
 
-// --- DB CONFIG ---
-$db_host = 'localhost';
-$db_user = 'root';
-$db_pass = '';
-$db_name = 'ecopulse'; // <- your actual database name
-
-$mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name);
-if ($mysqli->connect_error) {
+try {
+    $mysqli = db_mysqli();
+} catch (Throwable $e) {
+    error_log('[EcoPulse] get_devices DB error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Database connection failed']);
     exit;

@@ -2,7 +2,16 @@
 // export_pdf.php
 // Simple HTML report that the browser can "Print → Save as PDF"
 
-require_once __DIR__ . '/db.php';   // uses $mysqli from your db.php
+require_once __DIR__ . '/../db.php';
+
+try {
+    $mysqli = db_mysqli();
+} catch (Throwable $e) {
+    error_log('[EcoPulse] api/reports_data DB error: ' . $e->getMessage());
+    http_response_code(503);
+    echo 'Database connection failed.';
+    exit;
+}
 
 // ---- Read query params ----
 $reportType = $_GET['report'] ?? 'aqi_reports';

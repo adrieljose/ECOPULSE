@@ -2,12 +2,17 @@
 require_once __DIR__ . '/../db.php';
 
 // Log file for the diagnostic engine
-$logFile = __DIR__ . '/diagnostics_engine.log';
+$runtimeDir = sys_get_temp_dir() . '/ecopulse';
+if (!is_dir($runtimeDir)) {
+    @mkdir($runtimeDir, 0775, true);
+}
+$logFile = $runtimeDir . '/diagnostics_engine.log';
 
 function writeLog($message) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
-    file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    @file_put_contents($logFile, "[$timestamp] $message\n", FILE_APPEND);
+    error_log("[EcoPulse diagnostics_engine] $message");
     echo "[$timestamp] $message\n";
 }
 

@@ -12,12 +12,11 @@ if (!isset($_SESSION['admin'])) {
 
 require_once __DIR__ . '/db.php';
 
-// Ensure mysqli is available
-if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
-    $mysqli = new mysqli('localhost', 'root', '', 'ecopulse');
-    if ($mysqli->connect_errno) {
-        die('Database connection failed: ' . $mysqli->connect_error);
-    }
+try {
+    $mysqli = db_mysqli();
+} catch (Throwable $e) {
+    error_log('[EcoPulse] export_csv DB error: ' . $e->getMessage());
+    die('Database connection failed.');
 }
 
 // Params

@@ -1,6 +1,10 @@
 <?php
-define('GEMINI_API_KEY', 'AIzaSyAPBjWc4Yr8XeZhjkO0TPJ62cB09zA_cpQ'); // Using the key user provided
-$url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' . GEMINI_API_KEY;
+$apiKey = (string) (getenv('GEMINI_API_KEY') ?: '');
+if ($apiKey === '') {
+    echo "GEMINI_API_KEY is not configured.\n";
+    exit;
+}
+$url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' . rawurlencode($apiKey);
 
 $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
