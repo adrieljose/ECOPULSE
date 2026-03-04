@@ -16,22 +16,21 @@ try {
     $hours = max(1, min(168, $hours));
     $deviceId = isset($_GET['device_id']) && is_numeric($_GET['device_id']) ? (int)$_GET['device_id'] : null;
 
-    // PostgreSQL does not support parameterized INTERVAL; interpolate safely after int-casting
-    $where = "WHERE created_at >= (NOW() - INTERVAL '{$hours} hours')";
-    $params = [];
+    $where = 'WHERE created_at >= (NOW() - INTERVAL :hours HOUR)';
+    $params = [':hours' => $hours];
     if ($deviceId !== null && $deviceId > 0) {
         $where .= ' AND device_id = :device_id';
         $params[':device_id'] = $deviceId;
     }
 
     $sql = "
-        SELECT TO_CHAR(created_at, 'YYYY-MM-DD HH24:00') AS label,
+        SELECT DATE_FORMAT(created_at, '%Y-%m-%d %H:00') AS label,
                SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) AS critical_count,
                SUM(CASE WHEN severity = 'warning' THEN 1 ELSE 0 END) AS warning_count,
                SUM(CASE WHEN severity NOT IN ('critical','warning') THEN 1 ELSE 0 END) AS info_count
         FROM incident_logs
         {$where}
-        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD HH24:00')
+        GROUP BY label
         ORDER BY label ASC
     ";
     $stmt = $pdo->prepare($sql);

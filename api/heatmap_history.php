@@ -12,12 +12,12 @@ $sql = "
         d.id AS device_id,
         d.lat,
         d.lng,
-        TO_CHAR(r.recorded_at, 'YYYY-MM-DD HH24:00:00') AS hour_block,
+        DATE_FORMAT(r.recorded_at, '%Y-%m-%d %H:00:00') AS hour_block,
         ROUND(AVG(r.aqi)) AS avg_aqi
     FROM readings r
     JOIN devices d ON r.device_id = d.id
-    WHERE r.recorded_at >= NOW() - INTERVAL '24 hours'
-    GROUP BY d.id, d.lat, d.lng, hour_block
+    WHERE r.recorded_at >= NOW() - INTERVAL 24 HOUR
+    GROUP BY d.id, hour_block
     ORDER BY hour_block ASC
 ";
 

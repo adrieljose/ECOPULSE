@@ -43,10 +43,10 @@ if ($action === 'compare') {
     $deviceNames = $stmtName->fetchAll(PDO::FETCH_KEY_PAIR); // [id => name]
 
     // Prepare SQL for readings
-    $sql = "SELECT TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as label, ROUND(AVG(aqi)) as val
-            FROM readings
-            WHERE device_id = ? AND recorded_at BETWEEN ? AND ?
-            GROUP BY TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00')
+    $sql = "SELECT DATE_FORMAT(recorded_at, '%Y-%m-%d %H:00') as label, ROUND(AVG(aqi)) as val 
+            FROM readings 
+            WHERE device_id = ? AND recorded_at BETWEEN ? AND ? 
+            GROUP BY label 
             ORDER BY label ASC";
     $stmtData = $pdo->prepare($sql);
 
@@ -355,19 +355,19 @@ $intervalMap = [
     '1h' => '1 HOUR',
     '6h' => '6 HOUR',
     '12h' => '12 HOUR',
-    '24h' => '24 hours'
+    '24h' => '24 HOUR'
 ];
-$sqlInterval = $intervalMap[$timeframe] ?? '1 hour';
+$sqlInterval = $intervalMap[$timeframe] ?? '1 HOUR';
 
 $historySql = "
-  SELECT TO_CHAR(recorded_at, 'HH24:MI') label, pm1, pm25, pm10, o3, co, co2, temperature, humidity
+  SELECT DATE_FORMAT(recorded_at, '%H:%i') label, pm1, pm25, pm10, o3, co, co2, temperature, humidity
   FROM readings
-  WHERE recorded_at >= NOW() - INTERVAL '$sqlInterval'
+  WHERE recorded_at >= NOW() - INTERVAL $sqlInterval
 ";
 $trendSql = "
-  SELECT TO_CHAR(recorded_at, 'HH24:MI:SS') label, aqi, pm25, pm10, o3, co
+  SELECT DATE_FORMAT(recorded_at, '%H:%i:%s') label, aqi, pm25, pm10, o3, co
   FROM readings
-  WHERE recorded_at >= NOW() - INTERVAL '$sqlInterval'
+  WHERE recorded_at >= NOW() - INTERVAL $sqlInterval
 ";
 
 $params = [];

@@ -1,38 +1,16 @@
 {
-    "buildCommand": "",
-    "outputDirectory": ".",
-    "framework": null,
     "functions": {
         "api/**/*.php": {
-            "runtime": "vercel-php@0.7.2"
+            "runtime": "vercel-php@0.6.0"
+        },
+        "*.php": {
+            "runtime": "vercel-php@0.6.0"
         }
     },
     "routes": [
         {
-            "src": "/api/(.*)",
-            "dest": "/api/$1"
-        },
-        {
-            "src": "/(.*\\.php)",
-            "dest": "/api/router.php"
-        },
-        {
-            "src": "/((?!.*\\.)[^/]*$)",
-            "dest": "/api/router.php"
-        },
-        {
             "src": "/(.*)",
             "dest": "/$1"
-        }
-    ],
-    "crons": [
-        {
-            "path": "/cron/predictive_alerts.php",
-            "schedule": "0 16 * * *"
-        },
-        {
-            "path": "/cron/diagnostics_engine.php",
-            "schedule": "0 16 * * *"
         }
     ]
 }

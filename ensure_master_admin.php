@@ -18,42 +18,40 @@ $plainPassword = 'Master123!'; // change if desired before running
 try {
     $pdo = db();
 
-    // Create master_admins table if missing (PostgreSQL syntax)
+    // Create master_admins table if missing
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS master_admins (
-            id            SERIAL PRIMARY KEY,
-            username      VARCHAR(150) NOT NULL UNIQUE,
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(150) NOT NULL UNIQUE,
             password_hash VARCHAR(255) NOT NULL,
-            created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-        )
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
     $hash = password_hash($plainPassword, PASSWORD_BCRYPT);
 
-    // Upsert into master_admins (PostgreSQL ON CONFLICT replaces ON DUPLICATE KEY UPDATE)
+    // Upsert into master_admins
     $stmt = $pdo->prepare("
         INSERT INTO master_admins (username, password_hash)
         VALUES (:u, :h)
-        ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash
+        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)
     ");
     $stmt->execute([':u' => 'masteradmin', ':h' => $hash]);
 
     // Ensure masteradmin exists in admins table as active
-    try { $pdo->exec("ALTER TABLE admins ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL UNIQUE"); } catch (Throwable $e) { /* ignore */ }
-    try { $pdo->exec("ALTER TABLE admins ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'"); } catch (Throwable $e) { /* ignore */ }
+    // Add email column if missing
+    try { $pdo->exec("ALTER TABLE admins ADD COLUMN email VARCHAR(255) NULL UNIQUE"); } catch (Throwable $e) { /* ignore */ }
+    try { $pdo->exec("ALTER TABLE admins ADD COLUMN status ENUM('active','inactive') NOT NULL DEFAULT 'active'"); } catch (Throwable $e) { /* ignore */ }
 
     $stmt = $pdo->prepare("
         INSERT INTO admins (username, email, password_hash, status)
         VALUES (:u, :email, :h, 'active')
-        ON CONFLICT (username) DO UPDATE
-            SET password_hash = EXCLUDED.password_hash,
-                status        = 'active',
-                email         = COALESCE(admins.email, EXCLUDED.email)
+        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), status = 'active', email = COALESCE(admins.email, VALUES(email))
     ");
     $stmt->execute([
-        ':u'     => 'masteradmin',
+        ':u' => 'masteradmin',
         ':email' => 'masteradmin@admin.local',
-        ':h'     => $hash,
+        ':h' => $hash,
     ]);
 
     echo 'Master admin ensured. Username: masteradmin, Password: ' . $plainPassword . PHP_EOL;
