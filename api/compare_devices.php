@@ -23,7 +23,7 @@ $fromSql  = $fromDate ? $fromDate->format('Y-m-d 00:00:00') : null;
 $toSql    = $toDate ? $toDate->format('Y-m-d 23:59:59') : null;
 
 $sql = "
-SELECT device_id, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i') AS label, aqi
+SELECT device_id, TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:MI') AS label, aqi
 FROM readings
 WHERE (device_id = :a OR device_id = :b)
 ";

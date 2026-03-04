@@ -2,8 +2,38 @@ node_modules
 .git
 .idea
 .vscode
+__pycache__
+
+# Large runtime logs
 air_data.log
 output_test_sms.txt
-data/iprog_token.txt
-data/reset_emails.log
+recent_index.txt
 data/*.log
+data/iprog_token.txt
+
+# Migration / one-time scripts (not needed in production)
+migration_*.php
+seed_*.php
+add_*.php
+check_*.php
+update_users_table.php
+setup_users_table.php
+ensure_master_admin.php
+inser_latest_reading.php
+rename_device.php
+
+# Debug / test files
+debug_*.php
+*_test.php
+test_*.php
+db_check.php
+db_test.php
+
+# Local-only tools
+serial_to_api.py
+Dockerfile
+run_*.bat
+
+# Build artifacts
+build/
+src/

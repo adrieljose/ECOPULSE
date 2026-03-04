@@ -4,56 +4,50 @@ date_default_timezone_set('Asia/Manila');
 function db_env(string $key, ?string $default = null): ?string
 {
     $value = getenv($key);
-    if ($value !== false && $value !== '') {
-        return $value;
-    }
-    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
-        return (string) $_ENV[$key];
-    }
-    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
-        return (string) $_SERVER[$key];
-    }
+    if ($value !== false && $value !== '') return $value;
+    if (isset($_ENV[$key])    && $_ENV[$key]    !== '') return (string) $_ENV[$key];
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') return (string) $_SERVER[$key];
     return $default;
 }
 
 function db_is_production(): bool
 {
-    $appEnv = strtolower((string) db_env('APP_ENV', ''));
+    $appEnv    = strtolower((string) db_env('APP_ENV', ''));
     $vercelEnv = strtolower((string) db_env('VERCEL_ENV', ''));
     return $appEnv === 'production' || $vercelEnv === 'production' || db_env('VERCEL') === '1';
 }
 
+/**
+ * Parse a postgresql:// or postgres:// DATABASE_URL into PDO pgsql DSN parts.
+ * Supabase connection-pooler URL format:
+ *   postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+ */
 function db_config(): array
 {
-    $dsn = db_env('DATABASE_URL') ?: db_env('MYSQL_URL');
+    $dsn = db_env('DATABASE_URL') ?: db_env('POSTGRES_URL');
     if ($dsn) {
         $parts = parse_url($dsn);
         if ($parts !== false) {
             $query = [];
-            if (!empty($parts['query'])) {
-                parse_str($parts['query'], $query);
-            }
+            if (!empty($parts['query'])) parse_str($parts['query'], $query);
             return [
-                'hosts' => !empty($parts['host']) ? [(string) $parts['host']] : ['127.0.0.1', 'localhost'],
-                'port' => isset($parts['port']) ? (int) $parts['port'] : 3306,
-                'name' => isset($parts['path']) ? ltrim((string) $parts['path'], '/') : 'ecopulse',
-                'user' => isset($parts['user']) ? (string) $parts['user'] : 'root',
-                'pass' => isset($parts['pass']) ? (string) $parts['pass'] : '',
-                'ssl_ca' => (string) ($query['ssl_ca'] ?? db_env('DB_SSL_CA', '')),
+                'host'   => (string) ($parts['host'] ?? '127.0.0.1'),
+                'port'   => isset($parts['port']) ? (int) $parts['port'] : 5432,
+                'name'   => isset($parts['path']) ? ltrim((string) $parts['path'], '/') : 'postgres',
+                'user'   => isset($parts['user']) ? rawurldecode((string) $parts['user']) : 'postgres',
+                'pass'   => isset($parts['pass']) ? rawurldecode((string) $parts['pass']) : '',
+                'sslmode'=> (string) ($query['sslmode'] ?? 'require'),
             ];
         }
     }
 
-    $host = (string) db_env('DB_HOST', '');
-    $hosts = $host !== '' ? [$host] : (db_is_production() ? [] : ['127.0.0.1', 'localhost']);
-
     return [
-        'hosts' => $hosts,
-        'port' => (int) db_env('DB_PORT', '3306'),
-        'name' => (string) db_env('DB_NAME', db_is_production() ? '' : 'ecopulse'),
-        'user' => (string) db_env('DB_USER', db_is_production() ? '' : 'root'),
-        'pass' => (string) db_env('DB_PASS', ''),
-        'ssl_ca' => (string) db_env('DB_SSL_CA', ''),
+        'host'    => (string) db_env('DB_HOST', db_is_production() ? '' : '127.0.0.1'),
+        'port'    => (int)    db_env('DB_PORT', '5432'),
+        'name'    => (string) db_env('DB_NAME', db_is_production() ? '' : 'ecopulse'),
+        'user'    => (string) db_env('DB_USER', db_is_production() ? '' : 'postgres'),
+        'pass'    => (string) db_env('DB_PASS', ''),
+        'sslmode' => (string) db_env('DB_SSLMODE', db_is_production() ? 'require' : 'prefer'),
     ];
 }
 
@@ -86,68 +80,43 @@ function db_respond_unavailable(array $errors = []): never
     exit;
 }
 
+/**
+ * Returns a shared PDO connection (PostgreSQL / Supabase).
+ * Connection string env vars (in order of precedence):
+ *   DATABASE_URL  — full postgresql:// URL (recommended for Vercel + Supabase)
+ *   POSTGRES_URL  — alias accepted by some Vercel integrations
+ *   DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS / DB_SSLMODE  — individual vars
+ */
 function db(): PDO
 {
     static $pdo = null;
-    if ($pdo instanceof PDO) {
-        return $pdo;
-    }
+    if ($pdo instanceof PDO) return $pdo;
 
     $cfg = db_config();
-    if (empty($cfg['hosts']) || $cfg['name'] === '' || $cfg['user'] === '') {
+    if ($cfg['host'] === '' || $cfg['name'] === '' || $cfg['user'] === '') {
         error_log('[EcoPulse] Missing DB environment configuration.');
-        db_respond_unavailable(['Missing DB_HOST/DB_NAME/DB_USER (or DATABASE_URL).']);
+        db_respond_unavailable(['Missing DATABASE_URL or DB_HOST/DB_NAME/DB_USER.']);
     }
 
-    $errors = [];
-    foreach ($cfg['hosts'] as $host) {
-        try {
-            $dsn = sprintf(
-                'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
-                $host,
-                (int) $cfg['port'],
-                $cfg['name']
-            );
+    try {
+        $dsn = sprintf(
+            'pgsql:host=%s;port=%d;dbname=%s;sslmode=%s',
+            $cfg['host'],
+            (int) $cfg['port'],
+            $cfg['name'],
+            $cfg['sslmode']
+        );
 
-            $options = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ];
-            if (!empty($cfg['ssl_ca']) && defined('PDO::MYSQL_ATTR_SSL_CA')) {
-                $options[PDO::MYSQL_ATTR_SSL_CA] = $cfg['ssl_ca'];
-            }
+        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
 
-            $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], $options);
-            return $pdo;
-        } catch (Throwable $e) {
-            $errors[] = sprintf('%s:%d => %s', $host, (int) $cfg['port'], $e->getMessage());
-        }
+        return $pdo;
+    } catch (Throwable $e) {
+        $msg = sprintf('%s:%d => %s', $cfg['host'], (int) $cfg['port'], $e->getMessage());
+        error_log('[EcoPulse] PDO PostgreSQL connection failed: ' . $msg);
+        db_respond_unavailable([$msg]);
     }
-
-    if (!empty($errors)) {
-        error_log('[EcoPulse] PDO DB connection failed: ' . implode(' || ', $errors));
-    }
-    db_respond_unavailable($errors);
 }
-
-function db_mysqli(): mysqli
-{
-    $cfg = db_config();
-    if (empty($cfg['hosts']) || $cfg['name'] === '' || $cfg['user'] === '') {
-        throw new RuntimeException('Missing DB environment configuration.');
-    }
-
-    $errors = [];
-    foreach ($cfg['hosts'] as $host) {
-        $mysqli = @new mysqli($host, $cfg['user'], $cfg['pass'], $cfg['name'], (int) $cfg['port']);
-        if (!$mysqli->connect_errno) {
-            $mysqli->set_charset('utf8mb4');
-            return $mysqli;
-        }
-        $errors[] = sprintf('%s:%d => %s', $host, (int) $cfg['port'], $mysqli->connect_error);
-    }
-
-    throw new RuntimeException('MySQLi connection failed: ' . implode(' || ', $errors));
-}
-

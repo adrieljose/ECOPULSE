@@ -1,16 +1,26 @@
 {
     "functions": {
         "api/**/*.php": {
-            "runtime": "vercel-php@0.6.0"
+            "runtime": "vercel-php@0.7.2"
         },
         "*.php": {
-            "runtime": "vercel-php@0.6.0"
+            "runtime": "vercel-php@0.7.2"
         }
     },
     "routes": [
         {
             "src": "/(.*)",
             "dest": "/$1"
+        }
+    ],
+    "crons": [
+        {
+            "path": "/cron/predictive_alerts.php",
+            "schedule": "0 * * * *"
+        },
+        {
+            "path": "/cron/diagnostics_engine.php",
+            "schedule": "*/15 * * * *"
         }
     ]
 }
