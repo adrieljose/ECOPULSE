@@ -127,7 +127,13 @@ window.initMap = () => {
   const markerLayer = L.layerGroup().addTo(mapInstance);
   let heatLayer = null;
   let heatmapEnabled = false;
+  let heatmapTimelineData = [];
+  let heatmapPlayInterval = null;
   const toggleHeatmapBtn = document.getElementById('toggleHeatmap');
+  const heatmapTimelineContainer = document.getElementById('heatmapTimelineContainer');
+  const heatmapSlider = document.getElementById('heatmapSlider');
+  const heatmapPlayBtn = document.getElementById('heatmapPlayBtn');
+  const timelineCurrentLabel = document.getElementById('timelineCurrentLabel');
   const userLayer = L.layerGroup().addTo(mapInstance);
   const markerIndex = new Map();
 
@@ -324,15 +330,37 @@ window.initMap = () => {
       markerIndex.set(sensor.id, marker);
     });
 
-    // Update Heatmap Data
+    // Update Heatmap Data (Now supports Timeline Replay)
     if (heatLayer) {
         mapInstance.removeLayer(heatLayer);
     }
     
     if (heatmapEnabled && typeof L.heatLayer !== 'undefined') {
-        const heatPoints = plotReady
-            .filter(s => s.aqi != null)
-            .map(s => [s.lat, s.lng, Math.min(Number(s.aqi) * 3, 500)]); // Scale AQI for visual intensity
+        let heatPoints = [];
+        
+        // If we have timeline data and the slider exists, use the slider's index
+        if (heatmapTimelineData.length > 0 && heatmapSlider) {
+            const index = parseInt(heatmapSlider.value, 10);
+            if (heatmapTimelineData[index]) {
+                const snapshot = heatmapTimelineData[index];
+                // snapshot.points is [lat, lng, intensity, aqi]
+                heatPoints = snapshot.points.map(p => [p[0], p[1], Math.min(p[3] * 3, 500)]);
+                
+                // Update UI label
+                if (index === heatmapTimelineData.length - 1) {
+                     timelineCurrentLabel.textContent = 'Live';
+                     timelineCurrentLabel.classList.add('text-primary');
+                } else {
+                     timelineCurrentLabel.textContent = snapshot.time_label;
+                     timelineCurrentLabel.classList.remove('text-primary');
+                }
+            }
+        } else {
+            // Fallback to current live data
+            heatPoints = plotReady
+                .filter(s => s.aqi != null)
+                .map(s => [s.lat, s.lng, Math.min(Number(s.aqi) * 3, 500)]); 
+        }
 
         heatLayer = L.heatLayer(heatPoints, {
             radius: 35,
@@ -343,9 +371,16 @@ window.initMap = () => {
         
         // Hide regular markers when heatmap is on
         mapInstance.removeLayer(markerLayer);
+        if (heatmapTimelineContainer) heatmapTimelineContainer.classList.remove('d-none');
     } else {
         if (!mapInstance.hasLayer(markerLayer)) {
              markerLayer.addTo(mapInstance);
+        }
+        if (heatmapTimelineContainer) heatmapTimelineContainer.classList.add('d-none');
+        if (heatmapPlayInterval) {
+            clearInterval(heatmapPlayInterval);
+            heatmapPlayInterval = null;
+            if (heatmapPlayBtn) heatmapPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
         }
     }
 
@@ -1376,12 +1411,29 @@ window.initMap = () => {
   filterAqiBandEl?.addEventListener('change', () => applyFilters(true));
   filterStaleEl?.addEventListener('change', () => applyFilters(true));
   filterHighAqiEl?.addEventListener('change', () => applyFilters(true));
-  toggleHeatmapBtn?.addEventListener('click', () => {
+  toggleHeatmapBtn?.addEventListener('click', async () => {
       heatmapEnabled = !heatmapEnabled;
       if (heatmapEnabled) {
           toggleHeatmapBtn.classList.replace('btn-primary', 'btn-danger');
           toggleHeatmapBtn.style.color = '#fff';
           toggleHeatmapBtn.style.background = '#e74c3c';
+          toggleHeatmapBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+          
+          // Fetch historical timeline data
+          try {
+              const res = await fetch('api/heatmap_history.php');
+              const data = await res.json();
+              if (data.success && data.timeline) {
+                  heatmapTimelineData = data.timeline;
+                  if (heatmapSlider) {
+                      heatmapSlider.max = heatmapTimelineData.length - 1;
+                      heatmapSlider.value = heatmapTimelineData.length - 1; // Default to Live (last index)
+                  }
+              }
+          } catch (err) {
+              console.error('Failed to load heatmap timeline', err);
+          }
+
           toggleHeatmapBtn.innerHTML = '<i class="fa-solid fa-fire"></i> Heatmap On';
       } else {
           toggleHeatmapBtn.classList.replace('btn-danger', 'btn-primary');
@@ -1391,6 +1443,51 @@ window.initMap = () => {
       }
       applyFilters(false);
   });
+
+  // Timeline Event Listeners
+  heatmapSlider?.addEventListener('input', () => {
+      // Pause auto-play if user manually moves slider
+      if (heatmapPlayInterval) {
+          clearInterval(heatmapPlayInterval);
+          heatmapPlayInterval = null;
+          heatmapPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+      applyFilters(false); 
+  });
+
+  heatmapPlayBtn?.addEventListener('click', () => {
+      if (!heatmapSlider || heatmapTimelineData.length === 0) return;
+
+      if (heatmapPlayInterval) {
+          // Pause
+          clearInterval(heatmapPlayInterval);
+          heatmapPlayInterval = null;
+          heatmapPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+      } else {
+          // Play
+          heatmapPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          
+          // If at the end, restart from 0
+          if (parseInt(heatmapSlider.value, 10) >= heatmapTimelineData.length - 1) {
+              heatmapSlider.value = 0;
+              applyFilters(false);
+          }
+
+          heatmapPlayInterval = setInterval(() => {
+              let currentVal = parseInt(heatmapSlider.value, 10);
+              if (currentVal >= heatmapTimelineData.length - 1) {
+                  // Reached the end, pause
+                  clearInterval(heatmapPlayInterval);
+                  heatmapPlayInterval = null;
+                  heatmapPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+              } else {
+                  heatmapSlider.value = currentVal + 1;
+                  applyFilters(false);
+              }
+          }, 800); // Step every 800ms
+      }
+  });
+
   refreshButton?.addEventListener('click', () => {
     shouldAutoFit = true;
     fetchData(true);

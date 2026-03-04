@@ -113,6 +113,7 @@ const App = {
         this.initSms();
         this.initCompare();
         this.initSessionControl();
+        this.initFormValidation();
 
         // Initialize Feather Icons
         if (typeof feather !== 'undefined') {
@@ -203,6 +204,11 @@ const App = {
     },
 
     initAnimations() {
+        if (!('IntersectionObserver' in window)) {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('reveal-show'));
+            return;
+        }
+
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -375,11 +381,11 @@ const App = {
                 };
 
                 // --- Main AQI Card ---
-                document.getElementById('mainLocationLabel').textContent = data.selectedDeviceName || 'Unknown Location';
-                document.getElementById('mainAqiValue').textContent = data.overallAQI ?? '--';
-                document.getElementById('mainAqiStatus').textContent = data.aqiCategory ?? 'No Data';
-                document.getElementById('aqiPlainSummary').textContent = data.analytics?.summary || '';
-                document.getElementById('lastUpdatedText').textContent = new Date().toLocaleTimeString(); // Client time of fetch
+                setText('mainLocationLabel', data.selectedDeviceName || 'Unknown Location');
+                setText('mainAqiValue', data.overallAQI ?? '--');
+                setText('mainAqiStatus', data.aqiCategory ?? 'No Data');
+                setText('aqiPlainSummary', data.analytics?.summary || '');
+                setText('lastUpdatedText', new Date().toLocaleTimeString());
 
                 // Recommendation Logic (Simple + Targeted)
                 let advice = "Air quality is good. Enjoy outdoor activities.";
@@ -398,14 +404,14 @@ const App = {
                 const o3 = parseFloat(data.o3);
 
                 if (userCondition === 'Asthma') {
-                    if (pm25 > 12 || o3 > 70) specificWarning = "⚠️ ASTHMA ALERT: PM2.5 or Ozone levels are high. Keep inhaler ready and stay indoors.";
+                    if (pm25 > 12 || o3 > 70) specificWarning = 'Warning: Asthma alert. PM2.5 or Ozone levels are elevated. Keep inhaler ready and stay indoors.';
                 } else if (userCondition === 'COPD') {
-                    if (pm25 > 12 || pm10 > 54) specificWarning = "⚠️ COPD ALERT: Particulate levels are risky. Avoid outdoor exposure.";
+                    if (pm25 > 12 || pm10 > 54) specificWarning = 'Warning: COPD alert. Particulate levels are risky. Avoid outdoor exposure.';
                 } else if (userCondition === 'Heart Disease') {
-                    if (pm25 > 12) specificWarning = "⚠️ HEART ALERT: Pollution may trigger symptoms. Restrict outdoor activity.";
+                    if (pm25 > 12) specificWarning = 'Warning: Heart alert. Pollution may trigger symptoms. Restrict outdoor activity.';
                 } else if (['Pregnancy', 'Elderly', 'Children'].includes(userCondition)) {
                     if (cat.includes('moderate') || cat.includes('unhealthy')) {
-                        specificWarning = `⚠️ ${userCondition.toUpperCase()} ALERT: Air quality is poor. Minimize exposure.`;
+                        specificWarning = `Warning: ${userCondition.toUpperCase()} alert. Air quality is poor. Minimize exposure.`;
                     }
                 }
 
@@ -741,7 +747,7 @@ const App = {
     initGlobalAlerts() {
         const runCheck = () => this.checkAndTriggerSmsAlert();
         runCheck();
-        this.state.intervals.push(setInterval(runCheck, 2000));
+        this.state.intervals.push(setInterval(runCheck, 10000));
     },
 
     initCharts() {
@@ -795,6 +801,110 @@ const App = {
         });
     },
 
+    initFormValidation() {
+        const forms = document.querySelectorAll('form:not([data-skip-validation]):not(.needs-validation)');
+        if (!forms.length) return;
+
+        const fieldSelector = 'input, select, textarea';
+
+        const getErrorMessage = (field) => {
+            if (!field.validity) return 'Please check this field.';
+            if (field.validity.customError) return field.validationMessage || 'Please check this field.';
+            if (field.validity.valueMissing) return 'Please fill out this field.';
+            if (field.validity.typeMismatch) {
+                if ((field.type || '').toLowerCase() === 'email') return 'Please enter a valid email address.';
+                if ((field.type || '').toLowerCase() === 'url') return 'Please enter a valid URL.';
+                return 'Please enter a valid value.';
+            }
+            if (field.validity.patternMismatch) return field.dataset.patternMessage || field.title || 'Please match the requested format.';
+            if (field.validity.tooShort) return `Please use at least ${field.minLength} characters.`;
+            if (field.validity.tooLong) return `Please use no more than ${field.maxLength} characters.`;
+            if (field.validity.rangeUnderflow) return `Please enter a value of at least ${field.min}.`;
+            if (field.validity.rangeOverflow) return `Please enter a value of at most ${field.max}.`;
+            if (field.validity.stepMismatch) return 'Please enter a valid value.';
+            return 'Please check this field.';
+        };
+
+        const getFeedbackNode = (field) => {
+            const existing = field.parentElement?.querySelector('.field-error-message[data-generated="true"]');
+            if (existing) return existing;
+
+            const feedback = document.createElement('div');
+            feedback.className = 'field-error-message invalid-feedback d-block';
+            feedback.dataset.generated = 'true';
+            feedback.style.display = 'none';
+            feedback.style.fontSize = '0.8rem';
+
+            const container = field.closest('.input-group') || field.parentElement;
+            if (container && container.parentElement) {
+                container.parentElement.appendChild(feedback);
+            } else {
+                field.insertAdjacentElement('afterend', feedback);
+            }
+
+            return feedback;
+        };
+
+        const validateField = (field) => {
+            if (!field || field.disabled || field.type === 'hidden') return true;
+
+            field.setCustomValidity('');
+            const fieldName = (field.name || '').toLowerCase();
+            if (fieldName.includes('confirm') && fieldName.includes('password')) {
+                const sourceField = field.form?.querySelector('input[name="new_password"], input[name="password"], #password');
+                if (sourceField && field.value !== '' && sourceField.value !== field.value) {
+                    field.setCustomValidity('Passwords do not match.');
+                }
+            }
+            const valid = field.checkValidity();
+            const feedback = getFeedbackNode(field);
+
+            if (!valid) {
+                feedback.textContent = getErrorMessage(field);
+                feedback.style.display = 'block';
+                field.classList.add('is-invalid');
+                field.setAttribute('aria-invalid', 'true');
+            } else {
+                feedback.textContent = '';
+                feedback.style.display = 'none';
+                field.classList.remove('is-invalid');
+                field.removeAttribute('aria-invalid');
+            }
+            return valid;
+        };
+
+        forms.forEach((form) => {
+            if (form.dataset.validationBound === '1') return;
+            form.dataset.validationBound = '1';
+
+            form.setAttribute('novalidate', 'novalidate');
+
+            form.querySelectorAll(fieldSelector).forEach((field) => {
+                if (field.type === 'hidden') return;
+                field.addEventListener('input', () => validateField(field));
+                field.addEventListener('blur', () => validateField(field));
+                field.addEventListener('change', () => validateField(field));
+            });
+
+            form.addEventListener('submit', (event) => {
+                let firstInvalid = null;
+                let hasInvalid = false;
+
+                form.querySelectorAll(fieldSelector).forEach((field) => {
+                    const valid = validateField(field);
+                    if (!valid && !firstInvalid) firstInvalid = field;
+                    if (!valid) hasInvalid = true;
+                });
+
+                if (hasInvalid) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    firstInvalid?.focus();
+                }
+            });
+        });
+    },
+
     initCompare() {
         const countSel = document.getElementById('compareCount');
         const container = document.getElementById('compareSelectors');
@@ -808,6 +918,10 @@ const App = {
             .then(res => res.json())
             .then(data => {
                 availableSensors = data.sensors || [];
+                renderSelectors(parseInt(countSel.value));
+            })
+            .catch(() => {
+                availableSensors = [];
                 renderSelectors(parseInt(countSel.value));
             });
 
@@ -846,8 +960,10 @@ const App = {
 
         // 4. Defaults dates
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('compareFrom').value = today;
-        document.getElementById('compareTo').value = today;
+        const compareFromEl = document.getElementById('compareFrom');
+        const compareToEl = document.getElementById('compareTo');
+        if (compareFromEl) compareFromEl.value = today;
+        if (compareToEl) compareToEl.value = today;
 
         // 5. Handle Compare Click
         btn.addEventListener('click', () => {
@@ -863,8 +979,8 @@ const App = {
                 return;
             }
 
-            const from = document.getElementById('compareFrom').value;
-            const to = document.getElementById('compareTo').value;
+            const from = compareFromEl?.value || today;
+            const to = compareToEl?.value || today;
             const devicesParam = selectedIds.join(',');
 
             // Updated API call
@@ -873,13 +989,14 @@ const App = {
             // Show loading state
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Loading...';
-            document.getElementById('compareSummary').textContent = 'Fetching comparison data...';
+            const compareSummary = document.getElementById('compareSummary');
+            if (compareSummary) compareSummary.textContent = 'Fetching comparison data...';
 
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     if (res.error) {
-                        document.getElementById('compareSummary').textContent = res.error;
+                        if (compareSummary) compareSummary.textContent = res.error;
                         return;
                     }
 
@@ -908,11 +1025,11 @@ const App = {
                     }
 
                     const names = res.series.map(s => s.name).join(' vs ');
-                    document.getElementById('compareSummary').textContent = `Comparing: ${names}`;
+                    if (compareSummary) compareSummary.textContent = `Comparing: ${names}`;
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('compareSummary').textContent = 'Error fetching data.';
+                    if (compareSummary) compareSummary.textContent = 'Error fetching data.';
                 })
                 .finally(() => {
                     btn.disabled = false;
@@ -1003,10 +1120,10 @@ const App = {
 
     checkAndTriggerSmsAlert(data) {
         // Always check ALL devices for high AQI (the API handles detection)
-        // Throttle: only check once per 2 seconds globally
+        // Throttle: only check once per 10 seconds globally
         const lastCheck = sessionStorage.getItem('sms_global_check');
         const now = Date.now();
-        if (lastCheck && (now - parseInt(lastCheck)) < 2000) return; // 2 sec global cooldown
+        if (lastCheck && (now - parseInt(lastCheck)) < 10000) return;
 
         sessionStorage.setItem('sms_global_check', now.toString());
 
@@ -1083,6 +1200,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultEl = document.getElementById('ecoAiResult');
         const textEl = document.getElementById('ecoAiText');
         const timeEl = document.getElementById('ecoAiTimestamp');
+
+        if (!loadingEl || !resultEl || !textEl || !timeEl) return;
 
         loadingEl.style.display = 'block';
         resultEl.style.display = 'none';

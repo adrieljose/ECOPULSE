@@ -874,8 +874,6 @@ function formatTimestamp(?string $timestamp): string
         <!-- Sidebar Navigation -->
         <?php include 'sidebar.php'; ?>
 
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
         <!-- Main Content -->
         <main class="p-4 main-content">
             <header class="mb-4 d-flex justify-content-between align-items-center reveal">

@@ -88,8 +88,6 @@ if ($isAdmin) {
         <!-- Sidebar Navigation -->
         <?php include 'sidebar.php'; ?>
 
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
         <!-- Main Content (Vertical Stack Layout) -->
         <main class="main-content p-4">
             
@@ -161,15 +159,15 @@ if ($isAdmin) {
 
             <!-- Controls / Filters Row -->
             <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-3">
-                <div class="d-flex gap-2">
-                     <select id="filterStatus" class="form-select border-0 shadow-sm" style="min-width: 140px; border-radius: 0.8rem;">
+                <div class="d-flex gap-2 flex-wrap map-filter-group">
+                     <select id="filterStatus" class="form-select border-0 shadow-sm" style="min-width: 120px; border-radius: 0.8rem;">
                         <option value="all">Status: All</option>
                         <option value="online">Healthy</option>
                         <option value="warning">Watch</option>
                         <option value="critical">Critical</option>
                         <option value="offline">Offline</option>
                     </select>
-                    <select id="filterAqiBand" class="form-select border-0 shadow-sm" style="min-width: 140px; border-radius: 0.8rem;">
+                    <select id="filterAqiBand" class="form-select border-0 shadow-sm" style="min-width: 120px; border-radius: 0.8rem;">
                         <option value="all">AQI: All</option>
                         <option value="good">Good</option>
                         <option value="moderate">Moderate</option>
@@ -177,7 +175,7 @@ if ($isAdmin) {
                     </select>
                 </div>
                 
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
                     <button class="btn btn-primary shadow-sm rounded-pill d-flex align-items-center gap-2" id="toggleHeatmap" style="background: white; color: #2563eb; border: 1px solid #e0e0e0;">
                         <i class="fa-solid fa-layer-group"></i> Heatmap
                     </button>
@@ -193,8 +191,24 @@ if ($isAdmin) {
             </div>
 
             <!-- 2. Middle Section: Map Frame -->
-            <div class="map-landscape-frame mb-5">
+            <div class="map-landscape-frame mb-5 position-relative">
                 <div id="map" class="map-layer"></div>
+
+                <!-- Phase 3: Heatmap Timeline Controls (Hidden by default, shown when heatmap active) -->
+                <div id="heatmapTimelineContainer" class="position-absolute bottom-0 start-50 translate-middle-x mb-4 bg-white rounded-pill shadow-lg px-4 py-2 d-none" style="z-index: 1000; width: 80%; max-width: 600px; transition: all 0.3s ease;">
+                    <div class="d-flex align-items-center gap-3">
+                        <button id="heatmapPlayBtn" class="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px; border:none;" title="Play 24h History">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <div class="flex-grow-1 position-relative">
+                            <input type="range" class="form-range" id="heatmapSlider" min="0" max="23" step="1" value="23" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between px-2 mt-1" style="font-size: 0.65rem; color: #6c757d; font-weight: 500;">
+                                <span id="timelineStartLabel">24h ago</span>
+                                <span id="timelineCurrentLabel" class="text-primary fw-bold fs-6">Live</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Floating Legend inside map (Bottom Left) -->
                 <div class="floating-legend glass-panel">

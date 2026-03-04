@@ -128,8 +128,6 @@ try {
         <!-- Sidebar Navigation -->
 <?php include 'sidebar.php'; ?>
 
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
         <!-- Main Content -->
         <main class="p-4 main-content">
             <!-- Modern Dashboard Header -->

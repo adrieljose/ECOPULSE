@@ -105,6 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             margin: 0; min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
             color: var(--text-color);
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: clamp(0.8rem, 2vh, 1.75rem);
         }
         .background {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
@@ -119,10 +122,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
             color: white; padding: 2.5rem; width: 100%; max-width: 450px;
         }
+        .auth-shell {
+            width: 100%;
+            max-width: 520px;
+        }
         .btn-primary { background: #38bdf8; color: #0f172a; border: none; border-radius: 12px; padding: 0.8rem; font-weight: 700; width: 100%; }
         .btn-primary:hover { background: #7dd3fc; }
         .form-control { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.8rem; }
         .form-control:focus { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: white; box-shadow: none; }
+        .form-control.is-invalid { border-color: rgba(248, 113, 113, 0.85) !important; }
+        .field-error-message { color: #fecaca; font-size: 0.82rem; margin-top: 0.35rem; }
+
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 1.5rem 1rem;
+                border-radius: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
     </style>
     <!-- PWA Setup -->
     <link rel="manifest" href="/manifest.json">
@@ -140,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 </head>
 <body>
     <div class="background"></div>
-    <div class="container d-flex justify-content-center">
+    <div class="container d-flex justify-content-center auth-shell">
         <div class="login-card">
             <?php if ($error): ?>
                 <div class="text-center">
@@ -169,13 +192,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     <?php endif; ?>
                 </div>
 
-                <form method="post">
+                <form method="post" id="resetForm" novalidate>
                     <?php if ($step === 'verify_otp'): ?>
                         <!-- STEP 1: OTP Only -->
                         <input type="hidden" name="step" value="verify_otp">
                         <div class="mb-3">
                             <label class="form-label small">OTP Code</label>
-                            <input type="text" class="form-control text-center tracking-widest" name="otp" placeholder="000000" maxlength="6" required autofocus>
+                            <input type="text" class="form-control text-center tracking-widest" id="otp" name="otp" placeholder="000000" maxlength="6" pattern="^[0-9]{6}$" inputmode="numeric" required autofocus>
                         </div>
                         <button type="submit" class="btn btn-primary mb-3">Verify OTP</button>
                         <a href="forgot-password.php" class="btn btn-outline-light w-100 border-0 bg-transparent text-white-50"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
@@ -188,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         <div class="mb-3">
                             <label class="form-label small">New Password</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" name="password" id="password" placeholder="••••••••" required autofocus style="border-right: none;">
+                                <input type="password" class="form-control" name="password" id="password" minlength="8" pattern="^(?=.*[A-Za-z])(?=.*[0-9]).{8,}$" placeholder="••••••••" required autofocus style="border-right: none;">
                                 <button class="btn btn-outline-secondary" type="button" id="togglePassword" style="border-left: none; background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">
                                     <i class="fa-solid fa-eye-slash"></i>
                                 </button>
@@ -198,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         <div class="mb-4">
                             <label class="form-label small">Confirm Password</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" placeholder="••••••••" required style="border-right: none;">
+                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" minlength="8" placeholder="••••••••" required style="border-right: none;">
                                 <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword" style="border-left: none; background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);">
                                     <i class="fa-solid fa-eye-slash"></i>
                                 </button>
@@ -235,6 +258,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             
             setupToggle('password', 'togglePassword');
             setupToggle('confirm_password', 'toggleConfirmPassword');
+
+            const form = document.getElementById('resetForm');
+            if (!form) return;
+
+            const fields = Array.from(form.querySelectorAll('input'));
+            const passwordInput = document.getElementById('password');
+            const confirmInput = document.getElementById('confirm_password');
+
+            const getMessage = (field) => {
+                if (field.validity.customError) return field.validationMessage || 'Please check this field.';
+                if (field.validity.valueMissing) return 'Please fill out this field.';
+                if (field.validity.patternMismatch && field.id === 'otp') return 'OTP must be a 6-digit number.';
+                if (field.validity.patternMismatch && field.id === 'password') return 'Password must be at least 8 characters with letters and numbers.';
+                if (field.validity.tooShort) return `Please use at least ${field.minLength} characters.`;
+                return 'Please check this field.';
+            };
+
+            const renderError = (field, message) => {
+                const holder = field.closest('.input-group')?.parentElement || field.parentElement;
+                if (!holder) return;
+                let errorEl = holder.querySelector('.field-error-message');
+                if (!errorEl) {
+                    errorEl = document.createElement('div');
+                    errorEl.className = 'field-error-message';
+                    holder.appendChild(errorEl);
+                }
+                errorEl.textContent = message || '';
+                errorEl.style.display = message ? 'block' : 'none';
+                field.classList.toggle('is-invalid', Boolean(message));
+            };
+
+            const validateField = (field) => {
+                if (!field || field.type === 'hidden') return true;
+                field.setCustomValidity('');
+                if (field === confirmInput && confirmInput.value !== (passwordInput?.value || '')) {
+                    field.setCustomValidity('Passwords do not match.');
+                }
+                const valid = field.checkValidity();
+                renderError(field, valid ? '' : getMessage(field));
+                return valid;
+            };
+
+            fields.forEach((field) => {
+                if (field.type === 'hidden') return;
+                field.addEventListener('input', () => validateField(field));
+                field.addEventListener('blur', () => validateField(field));
+            });
+
+            form.addEventListener('submit', (event) => {
+                let firstInvalid = null;
+                let hasError = false;
+                fields.forEach((field) => {
+                    const valid = validateField(field);
+                    if (!valid && !firstInvalid) firstInvalid = field;
+                    if (!valid) hasError = true;
+                });
+                if (hasError) {
+                    event.preventDefault();
+                    firstInvalid?.focus();
+                }
+            });
         });
     </script>
 </body>

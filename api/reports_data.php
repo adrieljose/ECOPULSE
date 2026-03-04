@@ -114,6 +114,7 @@ if ($reportType === 'aqi_reports') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($title) ?></title>
     <style>
         body {
@@ -140,7 +141,9 @@ if ($reportType === 'aqi_reports') {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
+            min-width: 560px;
         }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         th, td {
             border: 1px solid #ddd;
             padding: 6px 8px;
@@ -190,6 +193,7 @@ if ($reportType === 'aqi_reports') {
     <?php if (count($rows) === 0): ?>
         <p class="no-data">No air quality records for the selected filters.</p>
     <?php else: ?>
+        <div class="table-wrap">
         <table>
             <thead>
             <tr>
@@ -224,6 +228,7 @@ if ($reportType === 'aqi_reports') {
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
 
 <?php else: ?>

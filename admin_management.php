@@ -640,6 +640,10 @@ try {
     $ustmt->execute();
     $users = $ustmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Fetch Maintenance Tickets
+    $tstmt = $pdo->query("SELECT t.id, t.device_id, t.issue_type, t.description, t.status, t.created_at, d.name AS device_name, b.name AS area_name FROM maintenance_tickets t JOIN devices d ON t.device_id = d.id LEFT JOIN barangays b ON d.barangay_id = b.id ORDER BY t.status ASC, t.created_at DESC");
+    $tickets = $tstmt->fetchAll(PDO::FETCH_ASSOC);
+
     // Fetch recent audits
     $astmt = $pdo->prepare("SELECT actor, action, target_type, target_id, target_name, details, created_at FROM user_audit ORDER BY id DESC LIMIT 10");
     $astmt->execute();
@@ -1081,6 +1085,78 @@ try {
                                         <tr>
                                             <td colspan="8" class="text-center py-5 text-muted">
                                                 No public users found.
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Maintenance Diagnostics (Feature 3) -->
+                <div class="card-modern mb-5">
+                    <div class="card-header-modern bg-white">
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="m-0 fw-bold text-danger"><i class="fa-solid fa-screwdriver-wrench me-1"></i> Automated Diagnostics</h6>
+                        </div>
+                        <span class="badge bg-danger-subtle text-danger rounded-pill"><?= count(array_filter($tickets, fn($t) => $t['status'] === 'Open')) ?> Action Required</span>
+                    </div>
+                    <div class="card-body-modern p-0">
+                        <div class="table-responsive">
+                            <table class="modern-table" id="ticketsTable">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4">Ticket ID</th>
+                                        <th>Hardware Node</th>
+                                        <th>Detected Anomaly</th>
+                                        <th>Status</th>
+                                        <th class="text-end pe-4">Timestamp</th>
+                                        <th class="text-end pe-4">Resolution</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($tickets)): ?>
+                                        <?php foreach ($tickets as $ticket): ?>
+                                            <tr>
+                                                <td class="ps-4 fw-bold text-muted">#T-<?= str_pad($ticket['id'], 4, '0', STR_PAD_LEFT) ?></td>
+                                                <td>
+                                                    <div class="fw-bold text-dark"><?= htmlspecialchars($ticket['device_name']) ?></div>
+                                                    <div class="small text-muted"><i class="fa-solid fa-location-dot me-1"></i><?= htmlspecialchars($ticket['area_name'] ?? 'Unknown Area') ?></div>
+                                                </td>
+                                                <td>
+                                                    <div class="fw-medium text-danger"><?= htmlspecialchars($ticket['issue_type']) ?></div>
+                                                    <div class="small text-muted" style="max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="<?= htmlspecialchars($ticket['description']) ?>">
+                                                        <?= htmlspecialchars($ticket['description']) ?>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <?php if ($ticket['status'] === 'Open'): ?>
+                                                        <span class="badge bg-danger-subtle text-danger"><i class="fa-solid fa-circle-exclamation me-1"></i> Needs Repair</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success-subtle text-success"><i class="fa-solid fa-check-circle me-1"></i> Resolved</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="text-end pe-4 text-muted small">
+                                                    <?= date('M d, y g:i A', strtotime($ticket['created_at'])) ?>
+                                                </td>
+                                                <td class="text-end pe-4">
+                                                    <?php if ($ticket['status'] === 'Open' && $isMasterAdmin): ?>
+                                                        <form method="post" action="api/resolve_ticket.php" class="d-inline-block">
+                                                            <input type="hidden" name="ticket_id" value="<?= $ticket['id'] ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill fw-bold"><i class="fa-solid fa-check me-1"></i> Mark Fixed</button>
+                                                        </form>
+                                                    <?php elseif ($ticket['status'] === 'Resolved'): ?>
+                                                        <span class="text-success small fw-bold"><i class="fa-solid fa-wrench"></i> Restored</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="6" class="text-center py-5 text-muted">
+                                                <i class="fa-solid fa-satellite-dish fa-2x mb-2 text-success opacity-50"></i><br>
+                                                System strictly nominal. No hardware faults detected by AI engine.
                                             </td>
                                         </tr>
                                     <?php endif; ?>

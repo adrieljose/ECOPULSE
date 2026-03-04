@@ -83,6 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 0; min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
             color: var(--text-color);
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: clamp(0.8rem, 2vh, 1.75rem);
         }
         .background {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
@@ -97,9 +100,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
             color: white; padding: 2.5rem; width: 100%; max-width: 450px;
         }
+        .auth-shell {
+            width: 100%;
+            max-width: 520px;
+        }
         .btn-success {
             background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
             border: none; border-radius: 10px; padding: 0.8rem; font-weight: 600;
+        }
+        .form-control.is-invalid { border-color: rgba(248, 113, 113, 0.85) !important; }
+        .field-error-message { color: #fecaca; font-size: 0.82rem; margin-top: 0.35rem; }
+
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 1.5rem 1rem;
+                border-radius: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
         }
     </style>
     <!-- PWA Setup -->
@@ -118,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
     <div class="background"></div>
-    <div class="container d-flex justify-content-center">
+    <div class="container d-flex justify-content-center auth-shell">
         <div class="login-card">
             <div class="text-center mb-4">
                 <h3 class="fw-bold">Verify Your Number</h3>
@@ -131,10 +154,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="post">
+            <form method="post" id="verifyOtpForm" novalidate>
                 <div class="mb-4">
-                    <input type="text" class="form-control text-center fs-4 tracking-widest" name="otp" 
-                           placeholder="000000" maxlength="6" pattern="\d{6}" required autofocus
+                    <input type="text" class="form-control text-center fs-4 tracking-widest" id="otpInput" name="otp" 
+                           placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus
+                           inputmode="numeric"
                            style="letter-spacing: 0.5em; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;">
                 </div>
                 <div class="d-grid">
@@ -158,41 +182,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
+        const form = document.getElementById('verifyOtpForm');
+        const otpInput = document.getElementById('otpInput');
         const resendBtn = document.getElementById('resendBtn');
         const resendMsg = document.getElementById('resendMsg');
         const resendTimer = document.getElementById('resendTimer');
         let countdown = 0;
 
-        resendBtn.addEventListener('click', function() {
-            resendBtn.disabled = true;
-            resendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Sending...';
-            resendMsg.textContent = '';
-            resendMsg.className = 'small mt-2';
+        const renderOtpError = (message = '') => {
+            if (!otpInput) return;
+            let errEl = otpInput.parentElement?.querySelector('.field-error-message');
+            if (!errEl) {
+                errEl = document.createElement('div');
+                errEl.className = 'field-error-message';
+                otpInput.parentElement?.appendChild(errEl);
+            }
+            errEl.textContent = message;
+            errEl.style.display = message ? 'block' : 'none';
+            otpInput.classList.toggle('is-invalid', Boolean(message));
+        };
 
-            fetch('api/resend_otp.php')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        resendMsg.textContent = 'Code resent successfully! Check your inbox.';
-                        resendMsg.className = 'small mt-2 text-success fw-bold';
-                        startCountdown(60);
-                    } else {
-                        resendMsg.textContent = data.error || 'Failed to resend code.';
-                        resendMsg.className = 'small mt-2 text-danger fw-bold';
-                        resendBtn.disabled = false;
-                        resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Resend OTP';
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    resendMsg.textContent = 'Network error. Please try again.';
-                    resendMsg.className = 'small mt-2 text-danger';
-                    resendBtn.disabled = false;
-                    resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Resend OTP';
-                });
+        const validateOtp = () => {
+            if (!otpInput) return true;
+            otpInput.setCustomValidity('');
+            const value = otpInput.value.trim();
+            if (!/^\d{6}$/.test(value)) {
+                otpInput.setCustomValidity('OTP must be 6 digits.');
+            }
+            const valid = otpInput.checkValidity();
+            renderOtpError(valid ? '' : 'Please enter a valid 6-digit OTP code.');
+            return valid;
+        };
+
+        otpInput?.addEventListener('input', validateOtp);
+        otpInput?.addEventListener('blur', validateOtp);
+        form?.addEventListener('submit', (event) => {
+            if (!validateOtp()) {
+                event.preventDefault();
+                otpInput?.focus();
+            }
         });
 
+        if (resendBtn && resendMsg && resendTimer) {
+            resendBtn.addEventListener('click', function() {
+                resendBtn.disabled = true;
+                resendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Sending...';
+                resendMsg.textContent = '';
+                resendMsg.className = 'small mt-2';
+
+                fetch('api/resend_otp.php')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            resendMsg.textContent = 'Code resent successfully! Check your inbox.';
+                            resendMsg.className = 'small mt-2 text-success fw-bold';
+                            startCountdown(60);
+                        } else {
+                            resendMsg.textContent = data.error || 'Failed to resend code.';
+                            resendMsg.className = 'small mt-2 text-danger fw-bold';
+                            resendBtn.disabled = false;
+                            resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Resend OTP';
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        resendMsg.textContent = 'Network error. Please try again.';
+                        resendMsg.className = 'small mt-2 text-danger';
+                        resendBtn.disabled = false;
+                        resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Resend OTP';
+                    });
+            });
+        }
+
         function startCountdown(seconds) {
+            if (!resendBtn || !resendTimer || !resendMsg) return;
             countdown = seconds;
             resendBtn.style.display = 'none';
             resendTimer.style.display = 'block';
@@ -207,7 +270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     resendBtn.disabled = false;
                     resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Resend OTP';
                     resendTimer.style.display = 'none';
-                    resendMsg.textContent = ''; // clear success message after cooldown
+                    resendMsg.textContent = '';
                 }
             }, 1000);
         }

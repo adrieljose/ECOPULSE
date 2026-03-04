@@ -10,10 +10,14 @@ $username = '';
 $first_name = '';
 $middle_name = '';
 $last_name = '';
+$suffix = '';
 $email = '';
 $birthday = '';
 $age = '';
 $contact_number = '';
+$province = '';
+$city = '';
+$barangay = '';
 $street = '';
 $zip_code = '';
 
@@ -136,12 +140,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #132f48;
             margin: 0;
             min-height: 100vh;
+            overflow-x: hidden;
             overflow-y: auto;
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--text-color);
-            padding: 2rem 0;
+            padding: clamp(0.8rem, 2vh, 1.75rem);
         }
 
         /* Animated Gradient Background */
@@ -186,6 +191,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             animation: fadeIn 0.6s ease-out;
         }
 
+        .auth-shell {
+            width: 100%;
+            max-width: 980px;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -206,10 +216,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .form-control:focus, .form-select:focus {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.3);
             box-shadow: none;
             color: #fff;
+            z-index: 2;
+        }
+
+        .input-group:focus-within .form-control,
+        .input-group:focus-within .form-select,
+        .input-group:focus-within .input-group-text,
+        .input-group:focus-within .toggle-password {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .form-control.is-invalid,
+        .form-select.is-invalid,
+        .input-group-text.is-invalid,
+        .toggle-password.is-invalid {
+            border-color: rgba(248, 113, 113, 0.85) !important;
+            z-index: 3;
+        }
+
+        .field-error-message {
+            color: #fecaca;
+            font-size: 0.82rem;
+            margin-top: 0.35rem;
         }
 
         .form-control:disabled, .form-select:disabled {
@@ -319,7 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             .login-card {
                 padding: 2rem 1.5rem !important;
-                margin: 1rem;
+                margin: 0;
                 max-width: 100% !important;
             }
             
@@ -365,6 +396,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 padding: 0.4rem 0.6rem;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
     </style>
     <!-- PWA Setup -->
     <link rel="manifest" href="/manifest.json">
@@ -384,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="background"></div>
 
-        <div class="container d-flex justify-content-center">
+        <div class="container d-flex justify-content-center auth-shell">
         <div class="login-card edge-glow" data-aos="fade-up" data-aos-duration="1000">
             <div class="mb-3 text-start">
                 <a href="login.php" class="back-link edge-glow">
@@ -407,7 +445,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="post" id="signupForm">
+            <form method="post" id="signupForm" novalidate>
                 
                 <div class="row g-3">
                     <!-- ACCOUNT & NAME -->
@@ -416,15 +454,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label small">First Name</label>
-                                <input type="text" class="form-control" name="first_name" value="<?= htmlspecialchars($first_name) ?>" required placeholder="e.g. Juan">
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?= htmlspecialchars($first_name) ?>" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z .'-]+$" data-pattern-message="First name should contain letters only." placeholder="e.g. Juan">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small">Middle Name</label>
-                                <input type="text" class="form-control" name="middle_name" value="<?= htmlspecialchars($middle_name) ?>" placeholder="e.g. Cruz (Optional)">
+                                <input type="text" class="form-control" id="middle_name" name="middle_name" value="<?= htmlspecialchars($middle_name) ?>" maxlength="50" pattern="^[A-Za-z .'-]*$" data-pattern-message="Middle name should contain letters only." placeholder="e.g. Cruz (Optional)">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small">Last Name</label>
-                                <input type="text" class="form-control" name="last_name" value="<?= htmlspecialchars($last_name) ?>" required placeholder="e.g. Santos">
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="<?= htmlspecialchars($last_name) ?>" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z .'-]+$" data-pattern-message="Last name should contain letters only." placeholder="e.g. Santos">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small">Suffix</label>
@@ -446,21 +484,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="form-label small">Username</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-solid fa-user"></i></span>
-                                <input type="text" class="form-control" name="username" value="<?= htmlspecialchars($username) ?>" required placeholder="e.g. johndoe123">
+                                <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($username) ?>" required minlength="4" maxlength="32" pattern="^[A-Za-z0-9._-]{4,32}$" data-pattern-message="Username must be 4-32 characters and can include letters, numbers, dots, underscores, and hyphens." placeholder="e.g. johndoe123">
                             </div>
                         </div>
                          <div class="mb-3">
                             <label class="form-label small">Email</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
-                                <input type="email" class="form-control" name="email" value="<?= htmlspecialchars($email) ?>" required placeholder="you@example.com">
+                                <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required maxlength="120" placeholder="you@example.com">
                             </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small">Password</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-                                <input type="password" class="form-control" name="password" id="password" required placeholder="••••••••">
+                                <input type="password" class="form-control" name="password" id="password" required minlength="8" pattern="^(?=.*[A-Za-z])(?=.*[0-9]).{8,}$" data-pattern-message="Password must be at least 8 characters and include at least 1 letter and 1 number." placeholder="••••••••">
                                 <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password" style="border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7);"><i class="fa-solid fa-eye"></i></button>
                             </div>
                              <div class="form-text text-white-50" style="font-size: 0.9rem;">Password must be strong (at least 8 chars, incl. letters & numbers).</div>
@@ -469,7 +507,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="form-label small">Confirm Password</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" required placeholder="••••••••">
+                                <input type="password" class="form-control" name="confirm_password" id="confirm_password" required minlength="8" placeholder="••••••••">
                                 <button type="button" class="btn btn-outline-secondary toggle-password" data-target="confirm_password" style="border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7);"><i class="fa-solid fa-eye"></i></button>
                             </div>
                         </div>
@@ -484,12 +522,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label small">Age</label>
-                                <input type="number" class="form-control" id="age" name="age" value="<?= htmlspecialchars($age) ?>">
+                                <input type="number" class="form-control" id="age" name="age" value="<?= htmlspecialchars($age) ?>" min="0" max="120">
                             </div>
                             <div class="col-12 mb-3">
                                 <label class="form-label small">Contact Number</label>
-                                <input type="tel" class="form-control" name="contact_number" value="<?= htmlspecialchars($contact_number) ?>" required 
-                                       placeholder="0912 345 6789" maxlength="11" pattern="09[0-9]{9}" 
+                                <input type="tel" class="form-control" id="contact_number" name="contact_number" value="<?= htmlspecialchars($contact_number) ?>" required inputmode="numeric"
+                                       placeholder="0912 345 6789" maxlength="11" pattern="09[0-9]{9}" data-pattern-message="Contact number must be 11 digits and start with 09."
                                        oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value.length > 2 && !this.value.startsWith('09')) { this.value = '09' + this.value.substring(2); } if(!this.value.startsWith('0')) { this.value = '0' + this.value; }">
                             </div>
                         </div>
@@ -522,7 +560,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label small">Street / House No.</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fa-solid fa-home"></i></span>
-                            <input type="text" class="form-control" name="street" value="<?= htmlspecialchars($street) ?>" required placeholder="House No., Street">
+                            <input type="text" class="form-control" id="street" name="street" value="<?= htmlspecialchars($street) ?>" required minlength="3" maxlength="120" placeholder="House No., Street">
                         </div>
                     </div>
                     <div class="col-md-8">
@@ -539,7 +577,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label small">Zip Code</label>
                          <div class="input-group">
                             <span class="input-group-text"><i class="fa-solid fa-map-pin"></i></span>
-                             <input type="text" class="form-control" name="zip_code" value="<?= htmlspecialchars($zip_code) ?>" required placeholder="Zip Code">
+                             <input type="text" class="form-control" id="zip_code" name="zip_code" value="<?= htmlspecialchars($zip_code) ?>" required inputmode="numeric" maxlength="4" pattern="^[0-9]{4}$" data-pattern-message="Zip code must be exactly 4 digits." placeholder="Zip Code">
                          </div>
                     </div>
                 </div>
@@ -557,134 +595,227 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- Data Fetching Script -->
     <script>
-        // --- Age Calculation ---
-        const birthdayInput = document.getElementById('birthday');
-        const ageInput = document.getElementById('age');
+        (() => {
+            const signupForm = document.getElementById('signupForm');
+            const birthdayInput = document.getElementById('birthday');
+            const ageInput = document.getElementById('age');
+            const provinceSelect = document.getElementById('province');
+            const citySelect = document.getElementById('city');
+            const barangaySelect = document.getElementById('barangay');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            const selectedValues = {
+                province: <?= json_encode($province ?? '') ?>,
+                city: <?= json_encode($city ?? '') ?>,
+                barangay: <?= json_encode($barangay ?? '') ?>
+            };
 
-        birthdayInput.addEventListener('change', function() {
-            const birthDate = new Date(this.value);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            ageInput.value = age >= 0 ? age : 0;
-        });
+            const todayISO = new Date().toISOString().split('T')[0];
+            if (birthdayInput) birthdayInput.max = todayISO;
 
-        // --- Address Dropdowns (Using PSGC API) ---
-        const provinceSelect = document.getElementById('province');
-        const citySelect = document.getElementById('city');
-        const barangaySelect = document.getElementById('barangay'); // Added
+            const calculateAge = () => {
+                if (!birthdayInput || !ageInput || !birthdayInput.value) return;
+                const birthDate = new Date(birthdayInput.value + 'T00:00:00');
+                if (Number.isNaN(birthDate.getTime())) return;
 
-        // Fetch Provinces
-        fetch('https://psgc.gitlab.io/api/provinces/')
-            .then(response => response.json())
-            .then(data => {
-                data.sort((a, b) => a.name.localeCompare(b.name));
-                data.forEach(province => {
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age -= 1;
+                }
+                ageInput.value = Math.max(0, age);
+            };
+
+            birthdayInput?.addEventListener('change', calculateAge);
+            calculateAge();
+
+            const setSelectMessage = (selectEl, message, disabled = true) => {
+                if (!selectEl) return;
+                selectEl.innerHTML = `<option value="">${message}</option>`;
+                selectEl.disabled = disabled;
+            };
+
+            const fetchJson = async (url) => {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            };
+
+            const fillSelectOptions = (selectEl, list, placeholder, selectedValue = '', codeKey = 'code') => {
+                if (!selectEl) return;
+                selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+                list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+                list.forEach((item) => {
                     const option = document.createElement('option');
-                    option.value = province.name; 
-                    option.textContent = province.name;
-                    option.dataset.code = province.code;
-                    provinceSelect.appendChild(option);
+                    option.value = item.name;
+                    option.textContent = item.name;
+                    if (codeKey && item[codeKey]) option.dataset.code = item[codeKey];
+                    if (selectedValue && selectedValue === item.name) option.selected = true;
+                    selectEl.appendChild(option);
                 });
-            })
-            .catch(err => console.error('Error fetching provinces:', err));
+                selectEl.disabled = false;
+            };
 
-        // On Province Change -> Fetch Cities
-        provinceSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const provinceCode = selectedOption.dataset.code;
+            const loadProvinces = async () => {
+                if (!provinceSelect) return;
+                setSelectMessage(provinceSelect, 'Loading provinces...', true);
+                try {
+                    const provinces = await fetchJson('https://psgc.gitlab.io/api/provinces/');
+                    fillSelectOptions(provinceSelect, provinces, 'Select Province', selectedValues.province);
+                    if (selectedValues.province) {
+                        await loadCitiesByProvince();
+                    }
+                } catch (error) {
+                    console.error('Error fetching provinces:', error);
+                    setSelectMessage(provinceSelect, 'Unable to load provinces. Refresh page.');
+                }
+            };
 
-            citySelect.innerHTML = '<option value="">Select City</option>';
-            citySelect.disabled = true;
-            barangaySelect.innerHTML = '<option value="">Select Barangay</option>'; // Reset Barangay
-            barangaySelect.disabled = true;
+            const loadCitiesByProvince = async () => {
+                const provinceCode = provinceSelect?.selectedOptions?.[0]?.dataset?.code || '';
+                setSelectMessage(citySelect, provinceCode ? 'Loading cities...' : 'Select City', !provinceCode);
+                setSelectMessage(barangaySelect, 'Select Barangay', true);
+                if (!provinceCode) return;
 
-            if (provinceCode) {
-                citySelect.disabled = false;
-                citySelect.innerHTML = '<option value="">Loading...</option>';
-                
-                fetch(`https://psgc.gitlab.io/api/provinces/${provinceCode}/cities-municipalities/`)
-                    .then(response => response.json())
-                    .then(data => {
-                         citySelect.innerHTML = '<option value="">Select City</option>';
-                         data.sort((a, b) => a.name.localeCompare(b.name));
-                         data.forEach(city => {
-                            const option = document.createElement('option');
-                            option.value = city.name;
-                            option.textContent = city.name;
-                            option.dataset.code = city.code; // Store City Code
-                            citySelect.appendChild(option);
-                         });
-                    })
-                    .catch(err => {
-                        console.error('Error fetching cities:', err);
-                        citySelect.innerHTML = '<option value="">Error loading cities</option>';
-                    });
-            }
-        });
+                try {
+                    const cities = await fetchJson(`https://psgc.gitlab.io/api/provinces/${provinceCode}/cities-municipalities/`);
+                    fillSelectOptions(citySelect, cities, 'Select City', selectedValues.city);
+                    if (selectedValues.city) {
+                        await loadBarangaysByCity();
+                    }
+                } catch (error) {
+                    console.error('Error fetching cities:', error);
+                    setSelectMessage(citySelect, 'Unable to load cities. Try again.');
+                }
+            };
 
-        // On City Change -> Fetch Barangays (NEW)
-        citySelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const cityCode = selectedOption.dataset.code;
+            const loadBarangaysByCity = async () => {
+                const cityCode = citySelect?.selectedOptions?.[0]?.dataset?.code || '';
+                setSelectMessage(barangaySelect, cityCode ? 'Loading barangays...' : 'Select Barangay', !cityCode);
+                if (!cityCode) return;
 
-            barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-            barangaySelect.disabled = true;
+                try {
+                    const barangays = await fetchJson(`https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`);
+                    fillSelectOptions(barangaySelect, barangays, 'Select Barangay', selectedValues.barangay, null);
+                } catch (error) {
+                    console.error('Error fetching barangays:', error);
+                    setSelectMessage(barangaySelect, 'Unable to load barangays. Try again.');
+                }
+            };
 
-            if (cityCode) {
-                barangaySelect.disabled = false;
-                barangaySelect.innerHTML = '<option value="">Loading...</option>';
+            provinceSelect?.addEventListener('change', async () => {
+                selectedValues.city = '';
+                selectedValues.barangay = '';
+                await loadCitiesByProvince();
+            });
 
-                // Try fetching fetch via cities or municipalities endpoint (API can be tricky, using general logic)
-                // PSGC API typically works with /cities-municipalities/{code}/barangays/ OR /cities/{code}/barangays OR /municipalities/{code}/barangays
-                // But the ID is unique so we can try the direct endpoint or the sub-endpoint.
-                // Best path based on docs: https://psgc.gitlab.io/api/cities-municipalities/{code}/barangays/
-                
-                fetch(`https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-                        data.sort((a, b) => a.name.localeCompare(b.name));
-                        data.forEach(brgy => {
-                            const option = document.createElement('option');
-                            option.value = brgy.name;
-                            option.textContent = brgy.name;
-                            barangaySelect.appendChild(option);
-                        });
-                    })
-                    .catch(err => {
-                        console.error('Error fetching barangays:', err);
-                        barangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
-                    });
-            }
-        });
-        // --- Password Toggle ---
-        document.querySelectorAll('.toggle-password').forEach(button => {
-            button.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-target');
-                const passwordInput = document.getElementById(targetId);
-                const icon = this.querySelector('i');
-                
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                } else {
-                    passwordInput.type = 'password';
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
+            citySelect?.addEventListener('change', async () => {
+                selectedValues.barangay = '';
+                await loadBarangaysByCity();
+            });
+
+            loadProvinces();
+
+            document.querySelectorAll('.toggle-password').forEach((button) => {
+                button.addEventListener('click', function () {
+                    const targetId = this.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const icon = this.querySelector('i');
+                    if (!input || !icon) return;
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            });
+
+            if (!signupForm) return;
+
+            const fieldSelector = 'input, select, textarea';
+            const getErrorMessage = (field) => {
+                if (field.validity.customError) return field.validationMessage || 'Please check this field.';
+                if (field.validity.valueMissing) return 'Please fill out this field.';
+                if (field.validity.typeMismatch && field.type === 'email') return 'Please enter a valid email address.';
+                if (field.validity.patternMismatch) return field.dataset.patternMessage || field.title || 'Please match the required format.';
+                if (field.validity.tooShort) return `Please use at least ${field.minLength} characters.`;
+                if (field.validity.tooLong) return `Please use no more than ${field.maxLength} characters.`;
+                if (field.validity.rangeUnderflow) return `Please enter at least ${field.min}.`;
+                if (field.validity.rangeOverflow) return `Please enter at most ${field.max}.`;
+                return 'Please check this field.';
+            };
+
+            const renderFieldError = (field, message) => {
+                const holder = field.closest('.input-group')?.parentElement || field.parentElement;
+                if (!holder) return;
+                let errorEl = holder.querySelector('.field-error-message');
+                if (!errorEl) {
+                    errorEl = document.createElement('div');
+                    errorEl.className = 'field-error-message';
+                    holder.appendChild(errorEl);
+                }
+                errorEl.textContent = message || '';
+                errorEl.style.display = message ? 'block' : 'none';
+                field.classList.toggle('is-invalid', Boolean(message));
+
+                if (field.parentElement.classList.contains('input-group')) {
+                    const icon = field.parentElement.querySelector('.input-group-text');
+                    const toggle = field.parentElement.querySelector('.toggle-password');
+                    if (icon) icon.classList.toggle('is-invalid', Boolean(message));
+                    if (toggle) toggle.classList.toggle('is-invalid', Boolean(message));
+                }
+            };
+
+            const validateField = (field) => {
+                if (!field || field.disabled || field.type === 'hidden') return true;
+                field.setCustomValidity('');
+
+                if (field === confirmPasswordInput && confirmPasswordInput.value !== passwordInput?.value) {
+                    field.setCustomValidity('Passwords do not match.');
+                }
+
+                const valid = field.checkValidity();
+                renderFieldError(field, valid ? '' : getErrorMessage(field));
+                return valid;
+            };
+
+            signupForm.querySelectorAll(fieldSelector).forEach((field) => {
+                if (field.type === 'hidden') return;
+                field.addEventListener('input', () => validateField(field));
+                field.addEventListener('blur', () => validateField(field));
+                field.addEventListener('change', () => validateField(field));
+            });
+
+            signupForm.addEventListener('submit', (event) => {
+                let firstInvalid = null;
+                let hasError = false;
+                signupForm.querySelectorAll(fieldSelector).forEach((field) => {
+                    const valid = validateField(field);
+                    if (!valid && !firstInvalid) firstInvalid = field;
+                    if (!valid) hasError = true;
+                });
+
+                if (hasError) {
+                    event.preventDefault();
+                    firstInvalid?.focus();
                 }
             });
-        });
+        })();
     </script>
     
     <!-- AOS Script -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        AOS.init();
+        AOS.init({
+            once: true,
+            duration: 600,
+            disable: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        });
     </script>
 
 </body>

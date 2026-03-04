@@ -255,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -292,7 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             color: var(--text-color);
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: clamp(0.8rem, 2vh, 1.75rem);
         }
 
         .background {
@@ -334,6 +337,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             position: relative;
             z-index: 1;
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .auth-shell {
+            width: 100%;
+            max-width: 560px;
         }
 
         @keyframes slideUp {
@@ -386,6 +394,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-color: rgba(255, 255, 255, 0.3);
             box-shadow: none;
             color: #fff;
+        }
+
+        .form-control.is-invalid {
+            border-color: rgba(248, 113, 113, 0.85) !important;
+        }
+
+        .field-error-message {
+            color: #fca5a5;
+            font-size: 0.82rem;
+            margin-top: 0.4rem;
         }
 
         .form-control::placeholder {
@@ -469,7 +487,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             .login-card {
                 padding: 2rem 1.5rem !important;
-                margin: 1rem;
+                margin: 0;
                 max-width: 100% !important;
             }
             
@@ -504,6 +522,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 font-size: 0.85rem !important;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
     </style>
     <!-- PWA Setup -->
     <link rel="manifest" href="/manifest.json">
@@ -522,7 +547,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="background"></div>
 
-    <div class="container d-flex justify-content-center">
+    <div class="container d-flex justify-content-center auth-shell">
         <div class="login-card">
             <div class="text-center mb-4">
                 <div class="login-logo mb-3">
@@ -564,7 +589,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="post" class="mb-3">
+            <form method="post" class="mb-3" id="forgotForm" novalidate>
                 <div class="mb-3">
                     <label class="form-label small-label text-uppercase text-white-50">Account Type</label>
                     <div class="btn-group w-100" role="group">
@@ -580,7 +605,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="form-label small-label text-uppercase text-white-50" for="username">Username</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" placeholder="Enter your username" required>
+                        <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" placeholder="Enter your username" required minlength="3" maxlength="64">
                     </div>
                     <small class="text-white-50">We will send a one-time code to the contact number on file.</small>
                 </div>
@@ -605,6 +630,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script>
       feather.replace()
+    </script>
+
+    <script>
+        (function attachForgotValidation() {
+            const form = document.getElementById('forgotForm');
+            if (!form) return;
+
+            const username = document.getElementById('username');
+            const getMsg = (field) => {
+                if (field.validity.valueMissing) return 'Please enter your username.';
+                if (field.validity.tooShort) return `Username must be at least ${field.minLength} characters.`;
+                if (field.validity.tooLong) return `Username must be no more than ${field.maxLength} characters.`;
+                return 'Please check this field.';
+            };
+
+            const renderError = (field, message) => {
+                let msg = field.parentElement?.querySelector('.field-error-message');
+                if (!msg) {
+                    msg = document.createElement('div');
+                    msg.className = 'field-error-message';
+                    field.parentElement?.appendChild(msg);
+                }
+                msg.textContent = message || '';
+                msg.style.display = message ? 'block' : 'none';
+                field.classList.toggle('is-invalid', Boolean(message));
+            };
+
+            const validate = () => {
+                if (!username) return true;
+                const valid = username.checkValidity();
+                renderError(username, valid ? '' : getMsg(username));
+                return valid;
+            };
+
+            username?.addEventListener('input', validate);
+            username?.addEventListener('blur', validate);
+
+            form.addEventListener('submit', (event) => {
+                if (!validate()) {
+                    event.preventDefault();
+                    username?.focus();
+                }
+            });
+        })();
     </script>
 
     <?php if ($showEmailPopup): ?>

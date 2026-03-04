@@ -121,6 +121,32 @@ $readingClass = $isReading ? 'text-success' : 'text-danger';
                     <a href="index.php?device_id=<?= (int)$device['id'] ?>" class="btn btn-outline-primary btn-lg">
                         View dashboard
                     </a>
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#embedModal">
+                        <i class="fa-solid fa-code me-1"></i> Get Widget
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Embed Modal -->
+    <div class="modal fade" id="embedModal" tabindex="-1" aria-labelledby="embedModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="embedModalLabel"><i class="fa-solid fa-code me-2 text-primary"></i>Widget Embed Code</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Copy and paste this HTML snippet into your website to display live air quality data from this sensor.</p>
+                    <div class="position-relative">
+                        <textarea id="embedTextarea" class="form-control font-monospace small bg-light" rows="4" readonly><iframe src="http://<?= $_SERVER['HTTP_HOST'] ?>/widget.php?id=<?= (int)$device['id'] ?>" width="100%" height="90" frameborder="0" scrolling="no" style="max-width:100%;border-radius:12px;overflow:hidden;"></iframe></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-primary px-4 fw-medium shadow-sm hover-elevate w-100" onclick="navigator.clipboard.writeText(document.getElementById('embedTextarea').value); this.innerHTML='<i class=\'fa-solid fa-check me-1\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fa-solid fa-copy me-1\'></i> Copy to Clipboard', 2000);">
+                        <i class="fa-solid fa-copy me-1"></i> Copy to Clipboard
+                    </button>
                 </div>
             </div>
         </div>
